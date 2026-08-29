@@ -9,13 +9,22 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./styles/brand.css">
+<!-- Bloqueante y antes del primer pintado: evita el destello de contenido.
+     Si no carga, la clase .anim no se añade y la página se ve estática. -->
+<script src="./src/ui/enable-motion.js"></script>
 <style>
   .site-header {
     display: flex; align-items: center; justify-content: space-between;
     gap: 16px; padding: 18px 24px; max-width: 1080px; margin: 0 auto;
+    position: sticky; top: 0; z-index: 20;
+    background: var(--cream);
+    transition: box-shadow 0.25s ease, background 0.25s ease;
   }
 
-  .hero { max-width: 1080px; margin: 0 auto; padding: 48px 24px 64px; }
+  .hero {
+    max-width: 1080px; margin: 0 auto; padding: 48px 24px 64px;
+    position: relative; overflow: hidden;
+  }
   .hero__eyebrow {
     display: inline-block; background: var(--rose-light); color: var(--rose-dark);
     font-size: 12px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase;
@@ -81,6 +90,100 @@
     justify-content: space-between; gap: 16px; flex-wrap: wrap;
   }
   .site-footer a { color: var(--rose-dark); }
+
+  /* ── Animaciones ──────────────────────────────────────────────────────
+     Todo cuelga de `.anim`, que añade enable-motion.js. Sin esa clase la
+     página se ve completa y estática: el contenido nunca queda oculto.
+     Se anima solo opacity y transform, que el navegador resuelve en el
+     compositor sin recalcular layout ni repintar.
+     brand.css desactiva además toda animación bajo prefers-reduced-motion.
+  ──────────────────────────────────────────────────────────────────────── */
+
+  @keyframes ac-rise {
+    from { opacity: 0; transform: translateY(22px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  @keyframes ac-float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-20px, 16px) scale(1.07); }
+  }
+
+  /* Entrada del hero: cada elemento entra un poco después del anterior.
+     `backwards` mantiene el estado inicial durante el retardo, de modo que
+     el escalonado no necesita opacity:0 en el CSS base. */
+  .anim .hero__eyebrow,
+  .anim .hero__title,
+  .anim .hero__lead,
+  .anim .hero__actions {
+    animation: ac-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .anim .hero__eyebrow { animation-delay: 0.05s; }
+  .anim .hero__title   { animation-delay: 0.15s; }
+  .anim .hero__lead    { animation-delay: 0.25s; }
+  .anim .hero__actions { animation-delay: 0.35s; }
+
+  /* Mancha de color que respira detrás del hero. Decorativa: va en ::before
+     para no añadir un elemento vacío al DOM ni ruido para lectores de pantalla. */
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -90px; right: -70px;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--rose-light) 0%, rgba(245, 221, 225, 0) 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .anim .hero::before { animation: ac-float 16s ease-in-out infinite; }
+  .hero > * { position: relative; z-index: 1; }
+
+  /* Aparición al entrar en pantalla. La clase is-visible la pone
+     landing-animations.js mediante IntersectionObserver. */
+  .anim .reveal { opacity: 0; transform: translateY(24px); }
+  .anim .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Red de seguridad: si landing-animations.js no arranca, enable-motion.js
+     marca .anim-failed a los 2 s y el contenido se muestra sin animación.
+     Garantiza que ningún fallo de red deje texto invisible. */
+  .anim.anim-failed .reveal { opacity: 1; transform: none; }
+
+  /* Escalonado por posición con nth-child en vez de style inline, para que la
+     CSP estricta de la Etapa 7 pueda prohibir estilos inline sin excepciones. */
+  .anim .problem-list li:nth-child(2).is-visible,
+  .anim .feature:nth-child(2).is-visible { transition-delay: 0.07s; }
+  .anim .problem-list li:nth-child(3).is-visible,
+  .anim .feature:nth-child(3).is-visible { transition-delay: 0.14s; }
+  .anim .problem-list li:nth-child(4).is-visible,
+  .anim .feature:nth-child(4).is-visible { transition-delay: 0.21s; }
+  .anim .feature:nth-child(5).is-visible { transition-delay: 0.28s; }
+  .anim .feature:nth-child(6).is-visible { transition-delay: 0.35s; }
+
+  /* Cabecera fija: gana sombra y fondo translúcido al desplazar. */
+  .site-header.is-stuck {
+    box-shadow: var(--shadow);
+    background: rgba(253, 248, 244, 0.88);
+    backdrop-filter: blur(10px);
+  }
+
+  /* Centinela invisible en el tope: cuando sale de pantalla, la cabecera
+     pasa a estado "is-stuck". Evita escuchar el evento scroll. */
+  #scroll-sentinel { height: 1px; margin-bottom: -1px; }
+
+  /* Realce al pasar el cursor. */
+  .feature { transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease; }
+  .feature:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--rose-light);
+  }
+
+  .problem-list li { transition: transform 0.2s ease, border-color 0.2s ease; }
+  .problem-list li:hover { transform: translateX(5px); border-left-color: var(--rose-dark); }
 </style>
 </head>
 <body class="ac-page">
@@ -92,6 +195,10 @@
   </a>
   <a class="ac-btn ac-btn--ghost" href="./login.html">Iniciar sesión</a>
 </header>
+
+<!-- Marca el tope de la página para detectar el desplazamiento sin
+     escuchar el evento scroll. Decorativo: oculto a lectores de pantalla. -->
+<div id="scroll-sentinel" aria-hidden="true"></div>
 
 <main>
   <section class="hero">
@@ -109,52 +216,52 @@
 
   <section class="section section--tinted">
     <div class="section__inner">
-      <h2 class="section__title">El problema</h2>
-      <p class="section__lead">
+      <h2 class="section__title reveal">El problema</h2>
+      <p class="section__lead reveal">
         Vender por catálogo es fácil. Lo difícil es acordarse de todo lo demás.
       </p>
       <ul class="problem-list">
-        <li><span aria-hidden="true">📓</span><span><b>Las cuentas viven en un cuaderno.</b> Si se pierde o se moja, se pierde el historial del negocio.</span></li>
-        <li><span aria-hidden="true">🤷</span><span><b>Nadie recuerda quién debe cuánto.</b> Los abonos parciales se anotan sueltos y las cuentas nunca cuadran.</span></li>
-        <li><span aria-hidden="true">📅</span><span><b>Los cobros se olvidan.</b> La clienta prometió pagar el viernes y el viernes pasó sin que nadie le escribiera.</span></li>
-        <li><span aria-hidden="true">🧮</span><span><b>El precio se calcula a ojo.</b> Sin saber el margen real, se vende sin saber si se está ganando.</span></li>
+        <li class="reveal"><span aria-hidden="true">📓</span><span><b>Las cuentas viven en un cuaderno.</b> Si se pierde o se moja, se pierde el historial del negocio.</span></li>
+        <li class="reveal"><span aria-hidden="true">🤷</span><span><b>Nadie recuerda quién debe cuánto.</b> Los abonos parciales se anotan sueltos y las cuentas nunca cuadran.</span></li>
+        <li class="reveal"><span aria-hidden="true">📅</span><span><b>Los cobros se olvidan.</b> La clienta prometió pagar el viernes y el viernes pasó sin que nadie le escribiera.</span></li>
+        <li class="reveal"><span aria-hidden="true">🧮</span><span><b>El precio se calcula a ojo.</b> Sin saber el margen real, se vende sin saber si se está ganando.</span></li>
       </ul>
     </div>
   </section>
 
   <section class="section">
-    <h2 class="section__title">Qué hace la aplicación</h2>
-    <p class="section__lead">
+    <h2 class="section__title reveal">Qué hace la aplicación</h2>
+    <p class="section__lead reveal">
       Seis herramientas conectadas entre sí: al registrar un abono, la deuda y el recordatorio
       se actualizan solos.
     </p>
     <div class="features">
-      <article class="feature">
+      <article class="feature reveal">
         <div class="feature__icon" aria-hidden="true">🏠</div>
         <h3 class="feature__name">Resumen del mes</h3>
         <p class="feature__text">Ventas, ganancia, margen y saldo por cobrar del período que elijas.</p>
       </article>
-      <article class="feature">
+      <article class="feature reveal">
         <div class="feature__icon" aria-hidden="true">🛍️</div>
         <h3 class="feature__name">Registro de ventas</h3>
         <p class="feature__text">Varios productos por venta, al contado, con abono inicial o a crédito. Descuenta el stock automáticamente.</p>
       </article>
-      <article class="feature">
+      <article class="feature reveal">
         <div class="feature__icon" aria-hidden="true">👥</div>
         <h3 class="feature__name">Clientes y deudas</h3>
         <p class="feature__text">Cada clienta con su historial de compras y su saldo pendiente siempre a la vista.</p>
       </article>
-      <article class="feature">
+      <article class="feature reveal">
         <div class="feature__icon" aria-hidden="true">📦</div>
         <h3 class="feature__name">Inventario</h3>
         <p class="feature__text">Catálogo por categoría con costo, precio, margen y control de existencias.</p>
       </article>
-      <article class="feature">
+      <article class="feature reveal">
         <div class="feature__icon" aria-hidden="true">🏷️</div>
         <h3 class="feature__name">Calculadora de precios</h3>
         <p class="feature__text">Define el margen que quieres ganar y obtén el precio de venta al instante.</p>
       </article>
-      <article class="feature">
+      <article class="feature reveal">
         <div class="feature__icon" aria-hidden="true">🔔</div>
         <h3 class="feature__name">Recordatorios de cobro</h3>
         <p class="feature__text">Agenda el día y la hora del cobro prometido. Al pagarse la deuda, el recordatorio se cierra solo.</p>
@@ -163,7 +270,7 @@
   </section>
 
   <section class="section">
-    <div class="cta">
+    <div class="cta reveal">
       <h2 class="cta__title">Empieza a llevar el control hoy</h2>
       <p class="cta__text">Inicia sesión con tu cuenta de Google. Sin formularios ni contraseñas nuevas que recordar.</p>
       <a class="ac-btn ac-btn--primary" href="./login.html">Iniciar sesión con Google</a>
@@ -180,6 +287,8 @@
     </span>
   </div>
 </footer>
+
+<script type="module" src="./src/ui/landing-animations.js"></script>
 
 </body>
 </html>
