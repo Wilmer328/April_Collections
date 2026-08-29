@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iniciar sesión — April Collections</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles/brand.css">
+<style>
+  body.ac-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 20px;
+  }
+
+  .login-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: var(--shadow-lg);
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+  }
+
+  .login-card__brand { justify-content: center; margin-bottom: 22px; }
+
+  .login-card__title {
+    font-family: var(--font-display);
+    font-size: 23px;
+    font-weight: 600;
+    margin: 0 0 8px;
+  }
+
+  .login-card__lead {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 26px;
+  }
+
+  .google-btn {
+    width: 100%;
+    background: var(--white);
+    color: var(--charcoal);
+    border: 1.5px solid var(--border);
+    font-size: 15px;
+  }
+  .google-btn:hover:not([disabled]) { background: var(--cream); border-color: var(--rose); }
+  .google-btn__icon { width: 19px; height: 19px; flex-shrink: 0; }
+
+  .login-card__status { margin-top: 18px; text-align: left; }
+  .login-card__status:empty { margin-top: 0; }
+
+  .session-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--cream);
+    border-radius: 12px;
+    padding: 12px 14px;
+    text-align: left;
+    margin-bottom: 16px;
+  }
+  .session-box__avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: var(--rose-light); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 17px;
+    object-fit: cover;
+  }
+  .session-box__name { font-weight: 600; font-size: 14px; }
+  .session-box__email { font-size: 12px; color: var(--muted); word-break: break-all; }
+
+  .login-footer { font-size: 13px; color: var(--muted); }
+  .login-footer a { color: var(--rose-dark); }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="ac-page">
+
+<main class="login-card">
+  <a class="ac-brand login-card__brand" href="./index.html">
+    <span class="ac-brand__icon" aria-hidden="true">💎</span>
+    <span class="ac-brand__name">April <span>Collections</span></span>
+  </a>
+
+  <h1 class="login-card__title">Inicia sesión</h1>
+  <p class="login-card__lead">Usa tu cuenta de Google para entrar a tu negocio.</p>
+
+  <!-- Estado: sesión activa -->
+  <div id="sesion-activa" hidden>
+    <div class="session-box">
+      <img id="sesion-avatar" class="session-box__avatar" alt="" hidden>
+      <span id="sesion-avatar-fallback" class="session-box__avatar" aria-hidden="true">👤</span>
+      <div>
+        <div id="sesion-nombre" class="session-box__name"></div>
+        <div id="sesion-email" class="session-box__email"></div>
+      </div>
+    </div>
+    <a class="ac-btn ac-btn--primary" style="width:100%" href="./app.html">Entrar a la aplicación</a>
+    <button id="btn-salir" class="ac-btn ac-btn--ghost" style="width:100%;margin-top:8px" type="button">
+      Cerrar sesión
+    </button>
+  </div>
+
+  <!-- Estado: sin sesión -->
+  <div id="sesion-inactiva" hidden>
+    <button id="btn-google" class="ac-btn google-btn" type="button">
+      <svg class="google-btn__icon" viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2 5-4.4 6.6v5.5h7.1c4.1-3.8 6.6-9.4 6.6-16.1z"/>
+        <path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.5-3.8-12.2-9H4.5v5.7C8.1 41.1 15.4 46 24 46z"/>
+        <path fill="#FBBC05" d="M11.8 28.2c-.4-1.3-.7-2.7-.7-4.2s.2-2.9.7-4.2v-5.7H4.5C3 17.1 2.1 20.4 2.1 24s.9 6.9 2.4 9.9l7.3-5.7z"/>
+        <path fill="#EA4335" d="M24 10.8c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.9 4.3 29.9 2 24 2 15.4 2 8.1 6.9 4.5 14.1l7.3 5.7c1.7-5.2 6.5-9 12.2-9z"/>
+      </svg>
+      <span id="btn-google-texto">Continuar con Google</span>
+    </button>
+  </div>
+
+  <div id="estado" class="login-card__status" role="status" aria-live="polite"></div>
+</main>
+
+<p class="login-footer">
+  <a href="./index.html">← Volver al inicio</a>
+</p>
+
+<script type="module">
+  import { isSupabaseConfigured } from './src/config/env.js';
+  import { iniciarSesionConGoogle, obtenerUsuarioActual, cerrarSesion } from './src/auth/session.js';
+
+  const APP_URL = './app.html';
+
+  const el = {
+    activa: document.getElementById('sesion-activa'),
+    inactiva: document.getElementById('sesion-inactiva'),
+    estado: document.getElementById('estado'),
+    btnGoogle: document.getElementById('btn-google'),
+    btnGoogleTexto: document.getElementById('btn-google-texto'),
+    btnSalir: document.getElementById('btn-salir'),
+    nombre: document.getElementById('sesion-nombre'),
+    email: document.getElementById('sesion-email'),
+    avatar: document.getElementById('sesion-avatar'),
+    avatarFallback: document.getElementById('sesion-avatar-fallback'),
+  };
+
+  /**
+   * Muestra un mensaje al usuario. Usa textContent, nunca innerHTML: el texto
+   * puede venir de un error del proveedor y no debe poder inyectar HTML.
+   *
+   * @param {string} mensaje
+   * @param {'warning'|'danger'|'success'} tono
+   */
+  function mostrarEstado(mensaje, tono) {
+    el.estado.className = `login-card__status ac-note ac-note--${tono}`;
+    el.estado.textContent = mensaje;
+  }
+
+  function limpiarEstado() {
+    el.estado.className = 'login-card__status';
+    el.estado.textContent = '';
+  }
+
+  /** Pinta los datos del usuario autenticado. */
+  function mostrarSesion(usuario) {
+    el.nombre.textContent = usuario.nombre;
+    el.email.textContent = usuario.email;
+
+    if (usuario.avatarUrl) {
+      el.avatar.src = usuario.avatarUrl;
+      el.avatar.hidden = false;
+      el.avatarFallback.hidden = true;
+    }
+
+    el.activa.hidden = false;
+    el.inactiva.hidden = true;
+  }
+
+  function mostrarFormularioLogin() {
+    el.activa.hidden = true;
+    el.inactiva.hidden = false;
+  }
+
+  /**
+   * Supabase devuelve los errores de OAuth en el fragmento de la URL.
+   * Se leen y se limpian para que no queden visibles tras recargar.
+   *
+   * @returns {string | null} descripción del error, si hubo.
+   */
+  function leerErrorDeRetorno() {
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const query = new URLSearchParams(window.location.search);
+    const descripcion = hash.get('error_description') ?? query.get('error_description');
+
+    if (descripcion) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    return descripcion;
+  }
+
+  async function manejarClicGoogle() {
+    el.btnGoogle.disabled = true;
+    el.btnGoogleTexto.textContent = 'Redirigiendo a Google…';
+    limpiarEstado();
+
+    try {
+      // Google devuelve a esta misma página; desde aquí se entra a la app.
+      const retorno = new URL('./login.html', window.location.href).href;
+      await iniciarSesionConGoogle(retorno);
+    } catch (error) {
+      mostrarEstado(error.message, 'danger');
+      el.btnGoogle.disabled = false;
+      el.btnGoogleTexto.textContent = 'Continuar con Google';
+    }
+  }
+
+  async function manejarClicSalir() {
+    el.btnSalir.disabled = true;
+
+    try {
+      await cerrarSesion();
+      mostrarFormularioLogin();
+      mostrarEstado('Sesión cerrada.', 'success');
+    } catch (error) {
+      mostrarEstado(error.message, 'danger');
+    } finally {
+      el.btnSalir.disabled = false;
+    }
+  }
+
+  async function iniciar() {
+    if (!isSupabaseConfigured()) {
+      mostrarFormularioLogin();
+      el.btnGoogle.disabled = true;
+      mostrarEstado(
+        'Supabase todavía no está configurado en este despliegue, así que el ' +
+        'inicio de sesión está deshabilitado. Mientras tanto puedes entrar a la ' +
+        'aplicación sin cuenta: los datos se guardan solo en este navegador.',
+        'warning',
+      );
+      return;
+    }
+
+    const errorRetorno = leerErrorDeRetorno();
+
+    if (errorRetorno) {
+      mostrarEstado(errorRetorno, 'danger');
+    }
+
+    try {
+      const usuario = await obtenerUsuarioActual();
+
+      if (usuario) {
+        mostrarSesion(usuario);
+      } else {
+        mostrarFormularioLogin();
+      }
+    } catch (error) {
+      mostrarFormularioLogin();
+      mostrarEstado(error.message, 'danger');
+    }
+  }
+
+  // Sin handlers inline: prepara el terreno para la CSP estricta de la Etapa 7.
+  el.btnGoogle.addEventListener('click', manejarClicGoogle);
+  el.btnSalir.addEventListener('click', manejarClicSalir);
+
+  iniciar();
+</script>
+
+</body>
+</html>

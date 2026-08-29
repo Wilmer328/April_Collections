@@ -30,3 +30,5 @@ build/
 # Archivos temporales
 *.tmp
 *.temp
+# Configuracion local generada desde config.example.js
+config.js
