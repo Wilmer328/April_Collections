@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>April Collections — Gestión de ventas por catálogo</title>
+<meta name="description" content="April Collections ordena las ventas, los clientes, el inventario y los cobros pendientes de un negocio de venta por catálogo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles/brand.css">
+<style>
+  .site-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 18px 24px; max-width: 1080px; margin: 0 auto;
+  }
+
+  .hero { max-width: 1080px; margin: 0 auto; padding: 48px 24px 64px; }
+  .hero__eyebrow {
+    display: inline-block; background: var(--rose-light); color: var(--rose-dark);
+    font-size: 12px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase;
+    padding: 6px 12px; border-radius: 20px; margin-bottom: 18px;
+  }
+  .hero__title {
+    font-family: var(--font-display); font-size: clamp(32px, 6vw, 52px);
+    font-weight: 700; line-height: 1.15; margin: 0 0 16px; max-width: 16ch;
+  }
+  .hero__title span { color: var(--rose); }
+  .hero__lead {
+    font-size: clamp(16px, 2.2vw, 19px); color: var(--muted);
+    max-width: 54ch; margin: 0 0 28px;
+  }
+  .hero__actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  .section { max-width: 1080px; margin: 0 auto; padding: 56px 24px; }
+  .section--tinted { background: var(--white); max-width: none; }
+  .section--tinted > .section__inner { max-width: 1080px; margin: 0 auto; }
+
+  .section__title {
+    font-family: var(--font-display); font-size: clamp(24px, 4vw, 32px);
+    font-weight: 600; margin: 0 0 12px;
+  }
+  .section__lead { color: var(--muted); max-width: 60ch; margin: 0 0 32px; }
+
+  .problem-list { display: grid; gap: 14px; padding: 0; margin: 0; list-style: none; }
+  .problem-list li {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--cream); border-left: 3px solid var(--rose);
+    border-radius: 0 10px 10px 0; padding: 14px 16px; font-size: 15px;
+  }
+  .problem-list li b { font-weight: 600; }
+
+  .features { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .feature {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px; box-shadow: var(--shadow);
+  }
+  .section--tinted .feature { background: var(--cream); }
+  .feature__icon { font-size: 26px; line-height: 1; margin-bottom: 12px; }
+  .feature__name {
+    font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0 0 6px;
+  }
+  .feature__text { font-size: 14px; color: var(--muted); margin: 0; }
+
+  .cta {
+    background: var(--charcoal); color: var(--white);
+    border-radius: 18px; padding: 44px 32px; text-align: center;
+  }
+  .cta__title {
+    font-family: var(--font-display); font-size: clamp(22px, 3.5vw, 30px);
+    margin: 0 0 10px; font-weight: 600;
+  }
+  .cta__text { color: rgba(255, 255, 255, 0.7); margin: 0 auto 24px; max-width: 46ch; font-size: 15px; }
+
+  .site-footer {
+    border-top: 1px solid var(--border); margin-top: 24px;
+    padding: 28px 24px; font-size: 13px; color: var(--muted);
+  }
+  .site-footer__inner {
+    max-width: 1080px; margin: 0 auto; display: flex;
+    justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .site-footer a { color: var(--rose-dark); }
+</style>
+</head>
+<body class="ac-page">
+
+<header class="site-header">
+  <a class="ac-brand" href="./index.html">
+    <span class="ac-brand__icon" aria-hidden="true">💎</span>
+    <span class="ac-brand__name">April <span>Collections</span></span>
+  </a>
+  <a class="ac-btn ac-btn--ghost" href="./login.html">Iniciar sesión</a>
+</header>
+
+<main>
+  <section class="hero">
+    <p class="hero__eyebrow">Venta por catálogo</p>
+    <h1 class="hero__title">Tu negocio de catálogo, <span>por fin ordenado</span></h1>
+    <p class="hero__lead">
+      April Collections reemplaza el cuaderno y las notas del teléfono. Registra cada venta,
+      lleva el control de quién te debe y cuánto, y te avisa el día que prometieron pagarte.
+    </p>
+    <div class="hero__actions">
+      <a class="ac-btn ac-btn--primary" href="./login.html">Iniciar sesión</a>
+      <a class="ac-btn ac-btn--ghost" href="./app.html">Ver la aplicación</a>
+    </div>
+  </section>
+
+  <section class="section section--tinted">
+    <div class="section__inner">
+      <h2 class="section__title">El problema</h2>
+      <p class="section__lead">
+        Vender por catálogo es fácil. Lo difícil es acordarse de todo lo demás.
+      </p>
+      <ul class="problem-list">
+        <li><span aria-hidden="true">📓</span><span><b>Las cuentas viven en un cuaderno.</b> Si se pierde o se moja, se pierde el historial del negocio.</span></li>
+        <li><span aria-hidden="true">🤷</span><span><b>Nadie recuerda quién debe cuánto.</b> Los abonos parciales se anotan sueltos y las cuentas nunca cuadran.</span></li>
+        <li><span aria-hidden="true">📅</span><span><b>Los cobros se olvidan.</b> La clienta prometió pagar el viernes y el viernes pasó sin que nadie le escribiera.</span></li>
+        <li><span aria-hidden="true">🧮</span><span><b>El precio se calcula a ojo.</b> Sin saber el margen real, se vende sin saber si se está ganando.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section__title">Qué hace la aplicación</h2>
+    <p class="section__lead">
+      Seis herramientas conectadas entre sí: al registrar un abono, la deuda y el recordatorio
+      se actualizan solos.
+    </p>
+    <div class="features">
+      <article class="feature">
+        <div class="feature__icon" aria-hidden="true">🏠</div>
+        <h3 class="feature__name">Resumen del mes</h3>
+        <p class="feature__text">Ventas, ganancia, margen y saldo por cobrar del período que elijas.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__icon" aria-hidden="true">🛍️</div>
+        <h3 class="feature__name">Registro de ventas</h3>
+        <p class="feature__text">Varios productos por venta, al contado, con abono inicial o a crédito. Descuenta el stock automáticamente.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__icon" aria-hidden="true">👥</div>
+        <h3 class="feature__name">Clientes y deudas</h3>
+        <p class="feature__text">Cada clienta con su historial de compras y su saldo pendiente siempre a la vista.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__icon" aria-hidden="true">📦</div>
+        <h3 class="feature__name">Inventario</h3>
+        <p class="feature__text">Catálogo por categoría con costo, precio, margen y control de existencias.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__icon" aria-hidden="true">🏷️</div>
+        <h3 class="feature__name">Calculadora de precios</h3>
+        <p class="feature__text">Define el margen que quieres ganar y obtén el precio de venta al instante.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__icon" aria-hidden="true">🔔</div>
+        <h3 class="feature__name">Recordatorios de cobro</h3>
+        <p class="feature__text">Agenda el día y la hora del cobro prometido. Al pagarse la deuda, el recordatorio se cierra solo.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="cta">
+      <h2 class="cta__title">Empieza a llevar el control hoy</h2>
+      <p class="cta__text">Inicia sesión con tu cuenta de Google. Sin formularios ni contraseñas nuevas que recordar.</p>
+      <a class="ac-btn ac-btn--primary" href="./login.html">Iniciar sesión con Google</a>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <span>April Collections · Proyecto Capstone de Ingeniería de Software 2</span>
+    <span>
+      Desarrollado por Wilmer Sánchez ·
+      <a href="https://github.com/Wilmer328/April_Collections" rel="noopener">Código en GitHub</a>
+    </span>
+  </div>
+</footer>
+
+</body>
+</html>

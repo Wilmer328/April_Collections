@@ -1,0 +1,131 @@
+/*
+ * April Collections — sistema de diseño compartido.
+ *
+ * Fuente única de los tokens de marca. Lo consumen la landing (index.html),
+ * el login (login.html) y la aplicación (app.html), para que la paleta no se
+ * duplique en tres archivos y no derive con el tiempo.
+ */
+
+:root {
+  /* Marca */
+  --rose: #c8697a;
+  --rose-light: #f5dde1;
+  --rose-dark: #9e3f52;
+  --gold: #c9a96e;
+  --gold-light: #f5ead8;
+
+  /* Neutros */
+  --cream: #fdf8f4;
+  --charcoal: #2a2024;
+  --muted: #7a6570;
+  --border: #e8d8dc;
+  --white: #ffffff;
+
+  /* Estados */
+  --success: #4a9e7a;
+  --success-light: #d6f0e6;
+  --danger: #c85a4a;
+  --danger-light: #fde8e4;
+  --warning: #c9843e;
+  --warning-light: #fdeedd;
+
+  /* Elevación */
+  --shadow: 0 2px 12px rgba(42, 32, 36, 0.08);
+  --shadow-lg: 0 8px 32px rgba(42, 32, 36, 0.12);
+
+  /* Tipografía */
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ── Primitivas compartidas por landing y login ────────────────────────── */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+body.ac-page {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--charcoal);
+  background: var(--cream);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.ac-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ac-brand__icon {
+  width: 32px;
+  height: 32px;
+  background: var(--rose);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.ac-brand__name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ac-brand__name span { color: var(--gold); }
+
+.ac-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border: none;
+  border-radius: 10px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+}
+
+.ac-btn:active { transform: translateY(1px); }
+
+.ac-btn--primary { background: var(--rose); color: var(--white); }
+.ac-btn--primary:hover { background: var(--rose-dark); }
+
+.ac-btn--ghost {
+  background: transparent;
+  color: var(--charcoal);
+  border: 1.5px solid var(--border);
+}
+.ac-btn--ghost:hover { background: var(--rose-light); border-color: var(--rose); }
+
+.ac-btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/* Foco visible: requisito de accesibilidad, no decorativo. */
+.ac-btn:focus-visible,
+a:focus-visible { outline: 3px solid var(--rose); outline-offset: 2px; }
+
+.ac-note {
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ac-note--warning { background: var(--warning-light); color: var(--warning); }
+.ac-note--danger { background: var(--danger-light); color: var(--danger); }
+.ac-note--success { background: var(--success-light); color: var(--success); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
