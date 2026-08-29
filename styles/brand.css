@@ -11,6 +11,7 @@
   --rose: #c8697a;
   --rose-light: #f5dde1;
   --rose-dark: #9e3f52;
+  --rose-deep: #83313f;
   --gold: #c9a96e;
   --gold-light: #f5ead8;
 
@@ -21,13 +22,25 @@
   --border: #e8d8dc;
   --white: #ffffff;
 
-  /* Estados */
+  /* Estados — relleno.
+     Estos tonos sirven de fondo, borde o indicador, no de texto. */
   --success: #4a9e7a;
   --success-light: #d6f0e6;
   --danger: #c85a4a;
   --danger-light: #fde8e4;
   --warning: #c9843e;
   --warning-light: #fdeedd;
+
+  /* Estados — texto.
+     Versiones oscurecidas de las anteriores, para escribir SOBRE el fondo
+     claro correspondiente. Existen porque los tonos de relleno no llegaban
+     al mínimo de contraste de WCAG AA (4.5:1) usados como texto:
+       warning sobre warning-light  2.69:1  ->  4.56:1
+       success sobre success-light  2.70:1  ->  4.54:1
+       danger  sobre danger-light   3.56:1  ->  4.57:1 */
+  --success-text: #37755a;
+  --danger-text: #ac4d40;
+  --warning-text: #95622e;
 
   /* Elevación */
   --shadow: 0 2px 12px rgba(42, 32, 36, 0.08);
@@ -36,6 +49,16 @@
   /* Tipografía */
   --font-display: 'Playfair Display', Georgia, serif;
   --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Escala tipográfica.
+     En rem, no en px, para que respete el tamaño de letra que el usuario
+     haya configurado en su navegador. El cuerpo parte de 16px, que es el
+     mínimo recomendado para lectura cómoda en teléfono. */
+  --text-xs: 0.8125rem;   /* 13px — metadatos, pies de foto */
+  --text-sm: 0.9375rem;   /* 15px — texto de apoyo */
+  --text-base: 1rem;      /*  16px — cuerpo */
+  --text-md: 1.0625rem;   /* 17px — cuerpo destacado */
+  --text-lg: 1.1875rem;   /* 19px — subtítulos */
 }
 
 /* ── Primitivas compartidas por landing y login ────────────────────────── */
@@ -47,9 +70,10 @@
 body.ac-page {
   margin: 0;
   font-family: var(--font-body);
+  font-size: var(--text-base);
   color: var(--charcoal);
   background: var(--cream);
-  line-height: 1.55;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -75,7 +99,7 @@ body.ac-page {
 
 .ac-brand__name {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 
@@ -86,11 +110,11 @@ body.ac-page {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 22px;
+  padding: 13px 24px;
   border: none;
   border-radius: 10px;
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -99,8 +123,11 @@ body.ac-page {
 
 .ac-btn:active { transform: translateY(1px); }
 
-.ac-btn--primary { background: var(--rose); color: var(--white); }
-.ac-btn--primary:hover { background: var(--rose-dark); }
+/* El fondo es rose-dark, no rose: el texto blanco sobre rose daba 3.65:1,
+   por debajo del mínimo de 4.5:1. Con rose-dark sube a 6.39:1 y al pasar el
+   cursor a rose-deep, 8.48:1. */
+.ac-btn--primary { background: var(--rose-dark); color: var(--white); }
+.ac-btn--primary:hover { background: var(--rose-deep); }
 
 .ac-btn--ghost {
   background: transparent;
@@ -117,14 +144,15 @@ a:focus-visible { outline: 3px solid var(--rose); outline-offset: 2px; }
 
 .ac-note {
   border-radius: 10px;
-  padding: 12px 14px;
-  font-size: 13px;
-  line-height: 1.5;
+  padding: 14px 16px;
+  font-size: var(--text-sm);
+  line-height: 1.6;
 }
 
-.ac-note--warning { background: var(--warning-light); color: var(--warning); }
-.ac-note--danger { background: var(--danger-light); color: var(--danger); }
-.ac-note--success { background: var(--success-light); color: var(--success); }
+/* Usan los tonos de texto, no los de relleno: ver el bloque de tokens. */
+.ac-note--warning { background: var(--warning-light); color: var(--warning-text); }
+.ac-note--danger { background: var(--danger-light); color: var(--danger-text); }
+.ac-note--success { background: var(--success-light); color: var(--success-text); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
