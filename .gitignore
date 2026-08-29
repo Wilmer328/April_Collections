@@ -32,3 +32,6 @@ build/
 *.temp
 # Configuracion local generada desde config.example.js
 config.js
+
+# Variables de entorno locales
+.env
