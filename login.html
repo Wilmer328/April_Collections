@@ -35,14 +35,14 @@
 
   .login-card__title {
     font-family: var(--font-display);
-    font-size: 23px;
+    font-size: 25px;
     font-weight: 600;
     margin: 0 0 8px;
   }
 
   .login-card__lead {
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--text-base);
     margin: 0 0 26px;
   }
 
@@ -51,7 +51,6 @@
     background: var(--white);
     color: var(--charcoal);
     border: 1.5px solid var(--border);
-    font-size: 15px;
   }
   .google-btn:hover:not([disabled]) { background: var(--cream); border-color: var(--rose); }
   .google-btn__icon { width: 19px; height: 19px; flex-shrink: 0; }
@@ -75,10 +74,10 @@
     display: flex; align-items: center; justify-content: center; font-size: 17px;
     object-fit: cover;
   }
-  .session-box__name { font-weight: 600; font-size: 14px; }
-  .session-box__email { font-size: 12px; color: var(--muted); word-break: break-all; }
+  .session-box__name { font-weight: 600; font-size: var(--text-base); }
+  .session-box__email { font-size: var(--text-xs); color: var(--muted); word-break: break-all; }
 
-  .login-footer { font-size: 13px; color: var(--muted); }
+  .login-footer { font-size: var(--text-sm); color: var(--muted); }
   .login-footer a { color: var(--rose-dark); }
 
   [hidden] { display: none !important; }
@@ -134,8 +133,6 @@
 <script type="module">
   import { isSupabaseConfigured } from './src/config/env.js';
   import { iniciarSesionConGoogle, obtenerUsuarioActual, cerrarSesion } from './src/auth/session.js';
-
-  const APP_URL = './app.html';
 
   const el = {
     activa: document.getElementById('sesion-activa'),

@@ -27,7 +27,7 @@
   }
   .hero__eyebrow {
     display: inline-block; background: var(--rose-light); color: var(--rose-dark);
-    font-size: 12px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase;
+    font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase;
     padding: 6px 12px; border-radius: 20px; margin-bottom: 18px;
   }
   .hero__title {
@@ -36,7 +36,7 @@
   }
   .hero__title span { color: var(--rose); }
   .hero__lead {
-    font-size: clamp(16px, 2.2vw, 19px); color: var(--muted);
+    font-size: clamp(1.0625rem, 2.2vw, 1.3125rem); color: var(--muted);
     max-width: 54ch; margin: 0 0 28px;
   }
   .hero__actions { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -49,13 +49,13 @@
     font-family: var(--font-display); font-size: clamp(24px, 4vw, 32px);
     font-weight: 600; margin: 0 0 12px;
   }
-  .section__lead { color: var(--muted); max-width: 60ch; margin: 0 0 32px; }
+  .section__lead { color: var(--muted); font-size: var(--text-md); max-width: 60ch; margin: 0 0 32px; }
 
   .problem-list { display: grid; gap: 14px; padding: 0; margin: 0; list-style: none; }
   .problem-list li {
     display: flex; gap: 12px; align-items: flex-start;
     background: var(--cream); border-left: 3px solid var(--rose);
-    border-radius: 0 10px 10px 0; padding: 14px 16px; font-size: 15px;
+    border-radius: 0 10px 10px 0; padding: 16px 18px; font-size: var(--text-md);
   }
   .problem-list li b { font-weight: 600; }
 
@@ -67,9 +67,9 @@
   .section--tinted .feature { background: var(--cream); }
   .feature__icon { font-size: 26px; line-height: 1; margin-bottom: 12px; }
   .feature__name {
-    font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0 0 6px;
+    font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; margin: 0 0 6px;
   }
-  .feature__text { font-size: 14px; color: var(--muted); margin: 0; }
+  .feature__text { font-size: var(--text-base); color: var(--muted); margin: 0; }
 
   .cta {
     background: var(--charcoal); color: var(--white);
@@ -79,11 +79,11 @@
     font-family: var(--font-display); font-size: clamp(22px, 3.5vw, 30px);
     margin: 0 0 10px; font-weight: 600;
   }
-  .cta__text { color: rgba(255, 255, 255, 0.7); margin: 0 auto 24px; max-width: 46ch; font-size: 15px; }
+  .cta__text { color: rgba(255, 255, 255, 0.82); margin: 0 auto 24px; max-width: 46ch; font-size: var(--text-md); }
 
   .site-footer {
     border-top: 1px solid var(--border); margin-top: 24px;
-    padding: 28px 24px; font-size: 13px; color: var(--muted);
+    padding: 28px 24px; font-size: var(--text-sm); color: var(--muted);
   }
   .site-footer__inner {
     max-width: 1080px; margin: 0 auto; display: flex;
