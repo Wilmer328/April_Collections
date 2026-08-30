@@ -1,0 +1,5 @@
+LEARN-CAP-26A0B552
+
+Codigo de verificacion del Capstone de Ingenieria de Software 2.
+Acredita que https://github.com/Wilmer328/April_Collections y este sitio
+pertenecen al autor del proyecto: Wilmer Sanchez.

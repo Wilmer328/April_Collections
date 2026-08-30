@@ -1,23 +1,16 @@
 /**
  * Cliente Supabase (singleton).
  *
- * Mientras el proyecto no tenga build step, supabase-js se carga desde CDN
- * con un import dinámico: así las páginas que no necesitan Supabase (la
- * landing) no descargan la librería, y una caída de red no rompe la carga
- * del resto de la aplicación.
+ * La librería se importa del paquete de node_modules, no de un CDN: así el
+ * código que llega al navegador viene todo del propio dominio, lo que permite
+ * declarar una Content-Security-Policy con `script-src 'self'` sin
+ * excepciones, y elimina la dependencia de que un tercero esté disponible.
  *
- * En la Etapa 0 este import pasa a ser `@supabase/supabase-js` desde
- * node_modules, que ya está declarado en package.json.
+ * El import es dinámico para que las páginas que no usan Supabase —la
+ * landing— no descarguen la librería.
  */
 
-import {
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
-  SUPABASE_JS_VERSION,
-  isSupabaseConfigured,
-} from '../config/env.js';
-
-const CDN_MODULE_URL = `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@${SUPABASE_JS_VERSION}/+esm`;
+import { SUPABASE_URL, SUPABASE_ANON_KEY, isSupabaseConfigured } from '../config/env.js';
 
 /** @type {import('@supabase/supabase-js').SupabaseClient | null} */
 let cachedClient = null;
@@ -49,7 +42,7 @@ export async function getSupabaseClient() {
     return cachedClient;
   }
 
-  const { createClient } = await import(/* @vite-ignore */ CDN_MODULE_URL);
+  const { createClient } = await import('@supabase/supabase-js');
 
   cachedClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {

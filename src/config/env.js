@@ -21,9 +21,6 @@ const runtimeConfig = globalThis.__APP_CONFIG__ ?? {};
 export const SUPABASE_URL = runtimeConfig.SUPABASE_URL ?? '';
 export const SUPABASE_ANON_KEY = runtimeConfig.SUPABASE_ANON_KEY ?? '';
 
-/** Versión de supabase-js fijada; sin build step se carga desde CDN. */
-export const SUPABASE_JS_VERSION = '2.112.4';
-
 /**
  * Indica si hay credenciales suficientes para hablar con Supabase.
  * Las pantallas la consultan para mostrar un estado honesto en vez de

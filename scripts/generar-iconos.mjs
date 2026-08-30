@@ -69,25 +69,27 @@ function bloque(tipo, datos) {
 /**
  * Convierte una rejilla de píxeles RGBA en un archivo PNG.
  *
- * @param {number} lado
- * @param {Buffer} pixeles lado × lado × 4 bytes.
+ * @param {number} ancho
+ * @param {number} alto
+ * @param {Buffer} pixeles ancho × alto × 4 bytes.
  * @returns {Buffer}
  */
-function armarPng(lado, pixeles) {
+function armarPng(ancho, alto, pixeles) {
   const FIRMA = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(lado, 0);
-  ihdr.writeUInt32BE(lado, 4);
+  ihdr.writeUInt32BE(ancho, 0);
+  ihdr.writeUInt32BE(alto, 4);
   ihdr[8] = 8; // bits por canal
   ihdr[9] = 6; // color RGBA
   // Los tres siguientes quedan en 0: compresión, filtro e interlazado estándar.
 
   // Cada fila va precedida de un byte que indica el filtro aplicado; 0 = ninguno.
-  const conFiltro = Buffer.alloc(lado * (lado * 4 + 1));
-  for (let y = 0; y < lado; y += 1) {
-    conFiltro[y * (lado * 4 + 1)] = 0;
-    pixeles.copy(conFiltro, y * (lado * 4 + 1) + 1, y * lado * 4, (y + 1) * lado * 4);
+  const bytesPorFila = ancho * 4;
+  const conFiltro = Buffer.alloc(alto * (bytesPorFila + 1));
+  for (let y = 0; y < alto; y += 1) {
+    conFiltro[y * (bytesPorFila + 1)] = 0;
+    pixeles.copy(conFiltro, y * (bytesPorFila + 1) + 1, y * bytesPorFila, (y + 1) * bytesPorFila);
   }
 
   return Buffer.concat([
@@ -136,7 +138,50 @@ function dibujarIcono(lado) {
     }
   }
 
-  return armarPng(lado, pixeles);
+  return armarPng(lado, lado, pixeles);
+}
+
+/**
+ * Imagen para redes sociales (Open Graph). Es la miniatura que aparece al
+ * compartir el enlace en WhatsApp o Facebook. Formato apaisado 1200x630, que
+ * es la proporcion que esperan esas plataformas.
+ *
+ * @returns {Buffer}
+ */
+function dibujarPortada() {
+  const ancho = 1200;
+  const alto = 630;
+  const pixeles = Buffer.alloc(ancho * alto * 4);
+
+  const centroX = ancho / 2;
+  const centroY = alto / 2;
+  const mitadDiamante = alto * 0.28;
+
+  for (let y = 0; y < alto; y += 1) {
+    for (let x = 0; x < ancho; x += 1) {
+      const i = (y * ancho + x) * 4;
+
+      // Degradado diagonal suave entre los dos rosas de la marca.
+      const mezcla = (x / ancho + y / alto) / 2;
+      const fondo = [
+        Math.round(FONDO[0] + (131 - FONDO[0]) * mezcla),
+        Math.round(FONDO[1] + (49 - FONDO[1]) * mezcla),
+        Math.round(FONDO[2] + (63 - FONDO[2]) * mezcla),
+      ];
+
+      const dentroDelDiamante =
+        Math.abs(x - centroX) + Math.abs(y - centroY) <= mitadDiamante;
+
+      const color = dentroDelDiamante ? DIAMANTE : fondo;
+
+      pixeles[i] = color[0];
+      pixeles[i + 1] = color[1];
+      pixeles[i + 2] = color[2];
+      pixeles[i + 3] = 255;
+    }
+  }
+
+  return armarPng(ancho, alto, pixeles);
 }
 
 const destino = fileURLToPath(new URL('../public/', import.meta.url));
@@ -148,3 +193,7 @@ for (const lado of TAMANOS) {
   writeFileSync(archivo, png);
   console.log(`icono-${lado}.png  ${png.length} bytes`);
 }
+
+const portada = dibujarPortada();
+writeFileSync(`${destino}portada.png`, portada);
+console.log(`portada.png     ${portada.length} bytes`);

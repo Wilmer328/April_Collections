@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Area privada de April Collections.">
+<title>Panel — April Collections</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<meta name="verificacion-capstone" content="LEARN-CAP-26A0B552">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="April Collections">
+<meta property="og:locale" content="es_HN">
+<meta property="og:title" content="Panel — April Collections">
+<meta property="og:description" content="Area privada de April Collections.">
+<meta property="og:url" content="https://www.jsanchez.site/panel">
+<meta property="og:image" content="https://www.jsanchez.site/portada.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Logotipo de April Collections">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Panel — April Collections">
+<meta name="twitter:description" content="Area privada de April Collections.">
+<meta name="twitter:image" content="https://www.jsanchez.site/portada.png">
+<link rel="canonical" href="https://www.jsanchez.site/panel">
+<link rel="icon" href="/icono-192.png">
+<link rel="apple-touch-icon" href="/icono-192.png">
+<meta name="theme-color" content="#9e3f52">
+<link rel="stylesheet" href="./styles/brand.css">
+<style>
+  /*
+   * El contenido arranca OCULTO y solo se muestra si hay sesión verificada.
+   * Es deliberado: si el JavaScript de comprobación no llegara a ejecutarse,
+   * la página se queda en blanco en vez de enseñar datos del negocio. El modo
+   * de fallo correcto de un área privada es no mostrar nada.
+   */
+  #contenido { display: none; }
+  #contenido.verificado { display: block; }
+
+  .panel {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+  }
+
+  .panel__cabecera {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 28px;
+  }
+
+  .panel__titulo {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 4vw, 32px);
+    margin: 0 0 6px;
+  }
+
+  .panel__lead { color: var(--muted); margin: 0; }
+
+  .tarjeta {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+
+  .tarjeta__titulo {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+
+  .dato { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .dato:last-child { border-bottom: none; }
+  .dato__clave { color: var(--muted); }
+  .dato__valor { font-weight: 600; text-align: right; word-break: break-word; }
+
+  .cargando {
+    max-width: 720px; margin: 0 auto; padding: 64px 24px;
+    text-align: center; color: var(--muted);
+  }
+
+  .acciones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="ac-page">
+
+<!-- Se ve mientras se comprueba la sesión. Sin datos del negocio. -->
+<div class="cargando" id="cargando">
+  <p>Comprobando tu sesión…</p>
+</div>
+
+<!-- Oculto hasta que la sesión esté verificada. -->
+<main class="panel" id="contenido">
+  <div class="panel__cabecera">
+    <div>
+      <h1 class="panel__titulo">Panel privado</h1>
+      <p class="panel__lead">Datos de tu cuenta y del despliegue.</p>
+    </div>
+    <a class="ac-btn ac-btn--ghost" href="./app.html">← Ir a la aplicación</a>
+  </div>
+
+  <section class="tarjeta">
+    <h2 class="tarjeta__titulo">Tu cuenta</h2>
+    <div class="dato"><span class="dato__clave">Nombre</span><span class="dato__valor" id="dato-nombre"></span></div>
+    <div class="dato"><span class="dato__clave">Correo</span><span class="dato__valor" id="dato-correo"></span></div>
+    <div class="dato"><span class="dato__clave">Identificador</span><span class="dato__valor" id="dato-id"></span></div>
+    <div class="acciones">
+      <button class="ac-btn ac-btn--ghost" id="btn-salir" type="button">Cerrar sesión</button>
+    </div>
+  </section>
+
+  <section class="tarjeta">
+    <h2 class="tarjeta__titulo">Estado del servicio</h2>
+    <div id="estado-servicio" class="ac-note">Consultando…</div>
+  </section>
+</main>
+
+<script type="module">
+  import { isSupabaseConfigured } from './src/config/env.js';
+  import { obtenerUsuarioActual, cerrarSesion } from './src/auth/session.js';
+
+  const LOGIN = './login.html';
+
+  const el = {
+    cargando: document.getElementById('cargando'),
+    contenido: document.getElementById('contenido'),
+    nombre: document.getElementById('dato-nombre'),
+    correo: document.getElementById('dato-correo'),
+    id: document.getElementById('dato-id'),
+    servicio: document.getElementById('estado-servicio'),
+    salir: document.getElementById('btn-salir'),
+  };
+
+  /**
+   * Saca al visitante del área privada.
+   *
+   * Se usa location.replace y no href para que el botón «atrás» del navegador
+   * no devuelva a esta página.
+   */
+  function expulsar() {
+    window.location.replace(LOGIN);
+  }
+
+  /** Muestra el panel una vez comprobada la sesión. */
+  function mostrar(usuario) {
+    el.nombre.textContent = usuario.nombre;
+    el.correo.textContent = usuario.email;
+    el.id.textContent = usuario.id;
+
+    el.cargando.hidden = true;
+    el.contenido.classList.add('verificado');
+  }
+
+  /** Consulta el healthcheck y resume el estado del despliegue. */
+  async function consultarServicio() {
+    try {
+      const respuesta = await fetch('/api/health', { cache: 'no-store' });
+      const datos = await respuesta.json();
+
+      el.servicio.className = 'ac-note ac-note--success';
+      el.servicio.textContent =
+        `Servicio ${datos.estado} · entorno ${datos.despliegue.entorno} · versión ${datos.version}`;
+    } catch {
+      el.servicio.className = 'ac-note ac-note--warning';
+      el.servicio.textContent = 'No se pudo consultar el estado del servicio.';
+    }
+  }
+
+  async function iniciar() {
+    // Sin Supabase configurado no existe forma de tener sesión, así que nadie
+    // puede entrar. Se falla CERRADO a propósito: en un área privada, ante la
+    // duda, no se muestra nada.
+    if (!isSupabaseConfigured()) {
+      expulsar();
+      return;
+    }
+
+    try {
+      const usuario = await obtenerUsuarioActual();
+
+      if (!usuario) {
+        expulsar();
+        return;
+      }
+
+      mostrar(usuario);
+      consultarServicio();
+    } catch {
+      expulsar();
+    }
+  }
+
+  el.salir.addEventListener('click', async () => {
+    try {
+      await cerrarSesion();
+    } finally {
+      expulsar();
+    }
+  });
+
+  iniciar();
+</script>
+
+</body>
+</html>

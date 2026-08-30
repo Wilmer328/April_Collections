@@ -1,0 +1,14 @@
+# April Collections
+#
+# La aplicacion y el login quedan fuera del indice: son area privada del
+# negocio, no contenido que deba aparecer en buscadores. La landing si se
+# indexa, porque es la cara publica del producto.
+
+User-agent: *
+Allow: /$
+Disallow: /app
+Disallow: /login
+Disallow: /panel
+Disallow: /api/
+
+Sitemap: https://www.jsanchez.site/sitemap.xml

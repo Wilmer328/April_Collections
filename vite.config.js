@@ -13,6 +13,7 @@ export default defineConfig({
         landing: desdeRaiz('./index.html'),
         login: desdeRaiz('./login.html'),
         app: desdeRaiz('./app.html'),
+        panel: desdeRaiz('./panel.html'),
       },
     },
   },
