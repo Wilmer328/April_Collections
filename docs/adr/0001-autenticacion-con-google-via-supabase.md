@@ -90,4 +90,4 @@ Estos pasos son manuales y los ejecuta el autor; no pueden versionarse:
 ## Referencias
 
 - Implementación: `src/auth/session.js`, `src/data/supabaseClient.js`, `login.html`
-- Configuración: `config.example.js`, `.env.example`
+- Configuración: `config.example.js`, [docs/configuracion.md](../configuracion.md)

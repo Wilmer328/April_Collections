@@ -94,7 +94,8 @@ Ningún secreto se versiona.
 
 1. Copia `config.example.js` como `config.js` y rellena la URL y la anon key
    de tu proyecto de Supabase (*Project Settings → API*).
-2. `.env.example` documenta las variables equivalentes para Vercel.
+2. [docs/configuracion.md](docs/configuracion.md) documenta las variables
+   equivalentes para Vercel y qué claves no pueden salir del servidor.
 
 La anon key es pública por diseño: viaja al navegador en cualquier aplicación
 Supabase y la protección real la dan las políticas RLS. La `service_role` key
@@ -120,5 +121,8 @@ Se publica en Vercel desde la rama `main`.
 
 ISC
 
-## Tu código de verificación
- LEARN-CAP-26A0B552
+## Código de verificación del curso
+
+`LEARN-CAP-26A0B552`
+
+Acredita que este repositorio pertenece al autor del proyecto.
