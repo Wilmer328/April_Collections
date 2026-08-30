@@ -1,0 +1,52 @@
+name: CI
+
+# Se ejecuta en cada push a main y en cada pull request que apunte a main.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Si se empuja dos veces seguidas, cancela la ejecución anterior en lugar de
+# gastar minutos verificando un commit que ya quedó atrás.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Pruebas y build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          # Vite 8 exige Node ^20.19 o >=22.12.
+          node-version: '22'
+          cache: npm
+
+      # `npm ci` instala exactamente lo que fija package-lock.json y falla si el
+      # lock no coincide con package.json. Es lo correcto en CI: `npm install`
+      # podría resolver versiones distintas a las probadas en local.
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas con cobertura
+        run: npm run test:coverage
+
+      - name: Verificar que el build de producción compila
+        run: npm run build
+
+      # Deja la cobertura descargable desde la ejecución, para poder revisarla
+      # sin tener que reproducir el pipeline en local.
+      - name: Publicar el informe de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: coverage/
+          retention-days: 14
