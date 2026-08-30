@@ -155,12 +155,12 @@
   <div class="card">
     <div class="card-title">🛍️ Registrar venta</div>
     <div class="form-grid form-grid-2">
-      <div class="field"><label>Cliente</label><input type="search" id="buscar-venta-cliente" placeholder="🔍 Buscar clienta" oninput="initVenta()" style="margin-bottom:5px"><select id="venta-cliente"><option value="">— Selecciona —</option></select></div>
+      <div class="field"><label>Cliente</label><input type="search" id="buscar-venta-cliente" placeholder="🔍 Buscar clienta" style="margin-bottom:5px"><select id="venta-cliente"><option value="">— Selecciona —</option></select></div>
       <div class="field"><label>Fecha</label><input type="date" id="venta-fecha"></div>
     </div>
     <div class="divider"></div>
     <div class="section-label">Productos</div>
-    <div class="field" style="margin-bottom:8px"><input type="search" id="buscar-venta-producto" placeholder="🔍 Filtrar productos del catálogo" oninput="renderVentaItems()"></div>
+    <div class="field" style="margin-bottom:8px"><input type="search" id="buscar-venta-producto" placeholder="🔍 Filtrar productos del catálogo"></div>
     <div class="venta-items" id="venta-items-container"></div>
     <button class="btn btn-ghost btn-sm" onclick="addVentaItem()" style="margin-top:7px">+ Agregar producto</button>
     <div class="divider"></div>
@@ -199,7 +199,7 @@
   </div>
   <div class="card">
     <div class="card-title">👥 Mis clientes</div>
-    <div class="field" style="margin-bottom:10px"><input type="search" id="buscar-cliente" placeholder="🔍 Buscar por nombre, DNI o teléfono" oninput="renderClientes()"></div>
+    <div class="field" style="margin-bottom:10px"><input type="search" id="buscar-cliente" placeholder="🔍 Buscar por nombre, DNI o teléfono"></div>
     <div class="list" id="lista-clientes"><div class="empty-state"><div class="emoji">👭</div>Aún no hay clientes</div></div>
   </div>
 </div>
@@ -228,7 +228,7 @@
       <button class="btn btn-sm btn-ghost" data-cat="Sandalias" onclick="filtrarInv('Sandalias',this)">👡</button>
       <button class="btn btn-sm btn-ghost" data-cat="Perfumes" onclick="filtrarInv('Perfumes',this)">🌸</button>
     </div>
-    <div class="field" style="margin-bottom:10px"><input type="search" id="buscar-inventario" placeholder="🔍 Buscar producto" oninput="renderInventario(catActual)"></div>
+    <div class="field" style="margin-bottom:10px"><input type="search" id="buscar-inventario" placeholder="🔍 Buscar producto"></div>
     <div class="list" id="lista-inventario"><div class="empty-state"><div class="emoji">📦</div>No hay productos</div></div>
   </div>
 </div>
@@ -574,15 +574,33 @@ function eliminarProducto(id) {
 // ── NUEVA VENTA ──
 let ventaItems = [];
 
-function initVenta() {
+/**
+ * Redibuja el desplegable de clientas aplicando el texto del buscador.
+ * Esta separado de initVenta() a proposito: teclear en el buscador solo debe
+ * refiltrar la lista, no reiniciar la fecha ni los productos de la venta.
+ */
+function renderSelectClientes() {
   const sel = document.getElementById('venta-cliente');
-  const cur = sel.value;
-  const consultaCl = document.getElementById('buscar-venta-cliente')?.value || '';
-  // La clienta ya elegida se mantiene en la lista aunque no coincida con el
-  // filtro; si no, al teclear se perderia la seleccion.
-  const clientesVisibles = data.clientes.filter(c => c.id===cur || filtrarPor([c], consultaCl, ['nombre','dni','tel']).length);
-  sel.innerHTML = '<option value="">— Selecciona —</option>' + clientesVisibles.map(c=>`<option value="${c.id}">${c.nombre}${c.dni?' · '+formatearDni(c.dni):''}</option>`).join('');
-  if(cur) sel.value = cur;
+  const elegida = sel.value;
+  const consulta = document.getElementById('buscar-venta-cliente')?.value || '';
+  const coincidencias = filtrarPor(data.clientes, consulta, ['nombre','dni','tel']);
+
+  // La clienta ya elegida permanece en la lista aunque no coincida con el
+  // filtro; de lo contrario se perderia la seleccion al seguir escribiendo.
+  const visibles = data.clientes.filter(c => c.id === elegida || coincidencias.includes(c));
+
+  sel.innerHTML = '<option value="">— Selecciona —</option>' +
+    visibles.map(c=>`<option value="${c.id}">${c.nombre}${c.dni?' · '+formatearDni(c.dni):''}</option>`).join('');
+
+  if(elegida) sel.value = elegida;
+
+  // Si solo queda una candidata y aun no hay nada elegido, se selecciona sola:
+  // escribir el nombre y que ya quede lista es el caso de uso habitual.
+  if(!elegida && consulta.trim() && visibles.length === 1) sel.value = visibles[0].id;
+}
+
+function initVenta() {
+  renderSelectClientes();
   const fi = document.getElementById('venta-fecha');
   fi.value = today(); fi.min = today();
   if(!ventaItems.length) addVentaItem();
@@ -871,6 +889,23 @@ Object.assign(window, {
   openVentaDetalle, registrarAbono, removeItem, renderInicio,
   selectProd, showPage, syncSlider, updateItem,
   updatePagoFields,
+});
+
+// ── Buscadores ───────────────────────────────────────────────────────────
+// Se conectan con addEventListener y no con atributos oninput. Los atributos
+// resuelven contra window y obligan a mantener a mano el bloque de arriba;
+// olvidarlo deja el control mudo sin ningun error visible. Esta es ademas la
+// forma que exige la CSP estricta de la Etapa 7.
+const BUSCADORES = [
+  ['buscar-cliente',         () => renderClientes()],
+  ['buscar-venta-cliente',   () => renderSelectClientes()],
+  ['buscar-venta-producto',  () => renderVentaItems()],
+  ['buscar-inventario',      () => renderInventario(catActual)],
+];
+
+BUSCADORES.forEach(([id, alEscribir]) => {
+  const campo = document.getElementById(id);
+  if(campo) campo.addEventListener('input', alEscribir);
 });
 
 // ── INIT ──
