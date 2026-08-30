@@ -1,0 +1,215 @@
+{
+  "proyecto": "April Collections",
+  "version": "1.0.0",
+  "motor": "PostgreSQL (Supabase)",
+  "esquema": "public",
+  "origen": "supabase/migrations/0001_esquema_inicial.sql",
+  "convenciones": {
+    "dinero": "Centavos enteros (bigint). Nunca numeric ni float: con decimales, un total repartido en abonos parciales acumula error y una deuda saldada queda con fracciones pendientes.",
+    "fechasDeCalendario": "Tipo date. La fecha de una venta o de un cobro no tiene hora ni zona; guardarla como timestamptz reintroduce errores de zona horaria.",
+    "marcasDeTiempo": "Tipo timestamptz, solo para auditoria, donde el instante exacto si importa.",
+    "identificadores": "uuid generado por la base. Sustituye a los ids por Date.now() de la version anterior, que colisionaban entre registros creados en el mismo milisegundo.",
+    "propiedad": "Toda tabla del negocio lleva owner_id hacia auth.users. Es lo que permite que RLS separe los datos de cada usuaria sin filtros en el cliente."
+  },
+  "entidades": [
+    {
+      "nombre": "perfiles",
+      "descripcion": "Extiende auth.users con los datos que la aplicacion muestra. Supabase no permite anadir columnas a auth.users.",
+      "campos": [
+        { "nombre": "id", "tipo": "uuid", "nulo": false, "clave": "primaria", "referencia": "auth.users.id" },
+        { "nombre": "correo", "tipo": "text", "nulo": false },
+        { "nombre": "nombre", "tipo": "text", "nulo": true },
+        { "nombre": "creado_en", "tipo": "timestamptz", "nulo": false, "porDefecto": "now()" }
+      ]
+    },
+    {
+      "nombre": "categorias",
+      "descripcion": "Rubros del catalogo. Los administra la usuaria; no vienen fijos en el codigo.",
+      "campos": [
+        { "nombre": "id", "tipo": "uuid", "nulo": false, "clave": "primaria" },
+        { "nombre": "owner_id", "tipo": "uuid", "nulo": false, "referencia": "auth.users.id" },
+        { "nombre": "nombre", "tipo": "text", "nulo": false, "restriccion": "entre 1 y 24 caracteres" },
+        { "nombre": "creado_en", "tipo": "timestamptz", "nulo": false }
+      ],
+      "indices": [
+        {
+          "nombre": "categorias_owner_nombre_idx",
+          "unico": true,
+          "campos": ["owner_id", "lower(nombre)"],
+          "motivo": "Evita que convivan 'Joyeria' y 'joyeria' como rubros distintos y los productos queden repartidos entre ambos."
+        }
+      ]
+    },
+    {
+      "nombre": "clientes",
+      "descripcion": "Las clientas del negocio.",
+      "campos": [
+        { "nombre": "id", "tipo": "uuid", "nulo": false, "clave": "primaria" },
+        { "nombre": "owner_id", "tipo": "uuid", "nulo": false, "referencia": "auth.users.id" },
+        { "nombre": "nombre", "tipo": "text", "nulo": false },
+        {
+          "nombre": "dni",
+          "tipo": "text",
+          "nulo": true,
+          "restriccion": "13 digitos cuando se informa",
+          "motivo": "Opcional a proposito: la usuaria registra clientas en medio de una venta y no siempre tiene el documento a la vista. Sirve para distinguir homonimas."
+        },
+        { "nombre": "telefono", "tipo": "text", "nulo": true },
+        { "nombre": "creado_en", "tipo": "timestamptz", "nulo": false }
+      ],
+      "indices": [
+        {
+          "nombre": "clientes_owner_dni_idx",
+          "unico": true,
+          "campos": ["owner_id", "dni"],
+          "parcial": "dni is not null",
+          "motivo": "Unico cuando se informa. El indice parcial deja convivir muchas clientas sin DNI."
+        }
+      ]
+    },
+    {
+      "nombre": "productos",
+      "descripcion": "Catalogo con costo, precio y existencias.",
+      "campos": [
+        { "nombre": "id", "tipo": "uuid", "nulo": false, "clave": "primaria" },
+        { "nombre": "owner_id", "tipo": "uuid", "nulo": false, "referencia": "auth.users.id" },
+        { "nombre": "nombre", "tipo": "text", "nulo": false },
+        { "nombre": "categoria", "tipo": "text", "nulo": false },
+        { "nombre": "costo_centavos", "tipo": "bigint", "nulo": false, "restriccion": ">= 0" },
+        { "nombre": "precio_centavos", "tipo": "bigint", "nulo": false, "restriccion": ">= 0" },
+        {
+          "nombre": "stock",
+          "tipo": "integer",
+          "nulo": false,
+          "restriccion": ">= 0",
+          "motivo": "Si el sistema dice -3 unidades, el dato es falso y deja de servir para nada."
+        },
+        { "nombre": "creado_en", "tipo": "timestamptz", "nulo": false }
+      ]
+    },
+    {
+      "nombre": "ventas",
+      "descripcion": "Cabecera de la venta. El total NO se guarda: es la suma de sus lineas y se calcula, para que no pueda quedar desincronizado con ellas.",
+      "campos": [
+        { "nombre": "id", "tipo": "uuid", "nulo": false, "clave": "primaria" },
+        { "nombre": "owner_id", "tipo": "uuid", "nulo": false, "referencia": "auth.users.id" },
+        { "nombre": "cliente_id", "tipo": "uuid", "nulo": false, "referencia": "clientes.id", "alBorrar": "restrict" },
+        { "nombre": "fecha", "tipo": "date", "nulo": false },
+        { "nombre": "tipo_pago", "tipo": "text", "nulo": false, "valores": ["contado", "abono", "credito"] },
+        { "nombre": "creado_en", "tipo": "timestamptz", "nulo": false }
+      ]
+    },
+    {
+      "nombre": "venta_items",
+      "descripcion": "Lineas de la venta. Nombre, precio y costo se copian al vender porque son el valor historico: si manana sube el costo del producto, la ganancia de las ventas viejas no debe cambiar.",
+      "campos": [
+        { "nombre": "id", "tipo": "uuid", "nulo": false, "clave": "primaria" },
+        { "nombre": "venta_id", "tipo": "uuid", "nulo": false, "referencia": "ventas.id", "alBorrar": "cascade" },
+        {
+          "nombre": "producto_id",
+          "tipo": "uuid",
+          "nulo": true,
+          "referencia": "productos.id",
+          "alBorrar": "set null",
+          "motivo": "Nulo cuando se vende algo que no esta en el catalogo."
+        },
+        { "nombre": "nombre", "tipo": "text", "nulo": false },
+        { "nombre": "precio_centavos", "tipo": "bigint", "nulo": false, "restriccion": ">= 0" },
+        { "nombre": "costo_centavos", "tipo": "bigint", "nulo": false, "restriccion": ">= 0" },
+        { "nombre": "cantidad", "tipo": "integer", "nulo": false, "restriccion": ">= 1" }
+      ]
+    },
+    {
+      "nombre": "abonos",
+      "descripcion": "Pagos parciales sobre una venta.",
+      "campos": [
+        { "nombre": "id", "tipo": "uuid", "nulo": false, "clave": "primaria" },
+        { "nombre": "venta_id", "tipo": "uuid", "nulo": false, "referencia": "ventas.id", "alBorrar": "cascade" },
+        { "nombre": "monto_centavos", "tipo": "bigint", "nulo": false, "restriccion": "> 0" },
+        { "nombre": "fecha", "tipo": "date", "nulo": false },
+        { "nombre": "creado_en", "tipo": "timestamptz", "nulo": false }
+      ]
+    },
+    {
+      "nombre": "recordatorios",
+      "descripcion": "Cobros agendados. Al saldarse la venta, sus recordatorios pendientes pasan a completado.",
+      "campos": [
+        { "nombre": "id", "tipo": "uuid", "nulo": false, "clave": "primaria" },
+        { "nombre": "owner_id", "tipo": "uuid", "nulo": false, "referencia": "auth.users.id" },
+        { "nombre": "cliente_id", "tipo": "uuid", "nulo": false, "referencia": "clientes.id", "alBorrar": "cascade" },
+        { "nombre": "venta_id", "tipo": "uuid", "nulo": true, "referencia": "ventas.id", "alBorrar": "cascade" },
+        { "nombre": "fecha", "tipo": "date", "nulo": false },
+        { "nombre": "hora", "tipo": "time", "nulo": false, "porDefecto": "09:00" },
+        { "nombre": "nota", "tipo": "text", "nulo": true },
+        { "nombre": "estado", "tipo": "text", "nulo": false, "valores": ["pendiente", "completado", "descartado"] },
+        {
+          "nombre": "avisado_en",
+          "tipo": "timestamptz",
+          "nulo": true,
+          "motivo": "Cuando se lanzo el ultimo aviso, para poder insistir cada cierto tiempo."
+        },
+        {
+          "nombre": "visto",
+          "tipo": "boolean",
+          "nulo": false,
+          "motivo": "El aviso insiste hasta que la usuaria lo atiende, en lugar de perderse al mostrarse una vez."
+        },
+        { "nombre": "creado_en", "tipo": "timestamptz", "nulo": false }
+      ]
+    }
+  ],
+  "vistas": [
+    {
+      "nombre": "ventas_con_saldo",
+      "descripcion": "Total, cobrado, pendiente y ganancia de cada venta, calculados en un solo lugar.",
+      "motivo": "En la version anterior el calculo del saldo pendiente estaba duplicado en siete sitios de app.html, cada uno con su propia tolerancia de centimos.",
+      "campos": [
+        "id", "owner_id", "cliente_id", "fecha", "tipo_pago",
+        "total_centavos", "cobrado_centavos", "pendiente_centavos", "ganancia_centavos"
+      ],
+      "notas": [
+        "pendiente_centavos nunca es negativo: no se manejan saldos a favor.",
+        "Declarada con security_invoker para que herede las politicas RLS de quien consulta y no las de quien la creo."
+      ]
+    }
+  ],
+  "relaciones": [
+    { "desde": "categorias.owner_id", "hacia": "auth.users.id", "cardinalidad": "muchos a uno" },
+    { "desde": "clientes.owner_id", "hacia": "auth.users.id", "cardinalidad": "muchos a uno" },
+    { "desde": "productos.owner_id", "hacia": "auth.users.id", "cardinalidad": "muchos a uno" },
+    { "desde": "ventas.owner_id", "hacia": "auth.users.id", "cardinalidad": "muchos a uno" },
+    { "desde": "ventas.cliente_id", "hacia": "clientes.id", "cardinalidad": "muchos a uno" },
+    { "desde": "venta_items.venta_id", "hacia": "ventas.id", "cardinalidad": "muchos a uno" },
+    { "desde": "venta_items.producto_id", "hacia": "productos.id", "cardinalidad": "muchos a uno opcional" },
+    { "desde": "abonos.venta_id", "hacia": "ventas.id", "cardinalidad": "muchos a uno" },
+    { "desde": "recordatorios.cliente_id", "hacia": "clientes.id", "cardinalidad": "muchos a uno" },
+    { "desde": "recordatorios.venta_id", "hacia": "ventas.id", "cardinalidad": "muchos a uno opcional" }
+  ],
+  "seguridad": {
+    "mecanismo": "Row Level Security de PostgreSQL",
+    "origen": "supabase/migrations/0002_politicas_rls.sql",
+    "principio": "RLS es la barrera real. El guard del cliente y ocultar botones son comodidad de interfaz: se saltan desactivando JavaScript. Postgres evalua estas politicas en el servidor, en cada consulta, contra el JWT emitido por Supabase Auth.",
+    "politicas": [
+      {
+        "tablas": ["categorias", "clientes", "productos", "ventas", "recordatorios"],
+        "regla": "auth.uid() = owner_id",
+        "aplicaA": "using y with check",
+        "motivo": "USING filtra lo que se puede leer o afectar; WITH CHECK valida lo que se intenta escribir. Sin WITH CHECK se podria insertar una fila con el owner_id de otra persona."
+      },
+      {
+        "tablas": ["venta_items", "abonos"],
+        "regla": "exists (select 1 from ventas v where v.id = venta_id and v.owner_id = auth.uid())",
+        "motivo": "No llevan owner_id propio: pertenecen a una venta que ya tiene dueno. Duplicar la columna permitiria que una linea acabara con un dueno distinto al de su venta."
+      },
+      {
+        "tablas": ["perfiles"],
+        "regla": "auth.uid() = id",
+        "motivo": "Cada quien ve y edita solo su perfil."
+      }
+    ]
+  },
+  "pendiente": {
+    "estado": "El esquema esta definido pero todavia no aplicado: el proyecto de Supabase no ha sido creado.",
+    "datosActuales": "Hoy la aplicacion guarda todo en localStorage del navegador. La migracion de esos datos al esquema es parte de la Etapa 3."
+  }
+}
