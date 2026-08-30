@@ -90,16 +90,16 @@ Las decisiones importantes se registran en [docs/adr/](docs/adr/).
 
 ## Configuración
 
-Ningún secreto se versiona.
+**Ninguna credencial se versiona.** El repositorio no contiene valores de
+configuración de ningún tipo: los archivos que podrían llevarlos están en
+`.gitignore`.
 
-1. Copia `config.example.js` como `config.js` y rellena la URL y la anon key
-   de tu proyecto de Supabase (*Project Settings → API*).
-2. [docs/configuracion.md](docs/configuracion.md) documenta las variables
-   equivalentes para Vercel y qué claves no pueden salir del servidor.
+Para poner en marcha un entorno, copia `config.example.js` como `config.js`
+—ignorado por Git— y rellénalo con los datos de tu proyecto de Supabase.
 
-La anon key es pública por diseño: viaja al navegador en cualquier aplicación
-Supabase y la protección real la dan las políticas RLS. La `service_role` key
-**nunca** debe aparecer en el cliente.
+📄 **[docs/configuracion.md](docs/configuracion.md)** explica qué valores hacen
+falta, de dónde se obtienen, cuáles son públicos por diseño y cuáles no pueden
+salir nunca del servidor.
 
 ## Cobertura
 
