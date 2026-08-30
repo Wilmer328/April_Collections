@@ -239,7 +239,7 @@
     <div class="card-title">📦 Agregar producto</div>
     <div class="form-grid form-grid-2">
       <div class="field"><label>Nombre</label><input type="text" id="inv-nombre" placeholder="Ej: Aretes dorados"></div>
-      <div class="field"><label>Categoría</label><select id="inv-categoria"><option>Joyería</option><option>Maquillaje</option><option>Sandalias</option><option>Perfumes</option><option>Otro</option></select></div>
+      <div class="field"><label>Categoría</label><select id="inv-categoria"></select></div>
       <div class="field"><label>Costo (L)</label><input type="number" id="inv-costo" placeholder="0.00" min="0" oninput="calcPrecioInv()"></div>
       <div class="field"><label>% ganancia</label><input type="number" id="inv-margen" placeholder="30" min="0" oninput="calcPrecioInv()"></div>
       <div class="field"><label>Precio de venta (L)</label><input type="number" id="inv-precio" placeholder="0.00" min="0" oninput="calcMargenInv()"></div>
@@ -249,14 +249,20 @@
     <div class="btn-row"><button class="btn btn-primary" onclick="guardarProducto()">➕ Agregar producto</button></div>
   </div>
   <div class="card">
-    <div class="card-title">🗂️ Catálogo</div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
-      <button class="btn btn-sm btn-ghost active-cat" data-cat="Todas" onclick="filtrarInv('Todas',this)">Todas</button>
-      <button class="btn btn-sm btn-ghost" data-cat="Joyería" onclick="filtrarInv('Joyería',this)">💍</button>
-      <button class="btn btn-sm btn-ghost" data-cat="Maquillaje" onclick="filtrarInv('Maquillaje',this)">💄</button>
-      <button class="btn btn-sm btn-ghost" data-cat="Sandalias" onclick="filtrarInv('Sandalias',this)">👡</button>
-      <button class="btn btn-sm btn-ghost" data-cat="Perfumes" onclick="filtrarInv('Perfumes',this)">🌸</button>
+    <div class="card-title">🏷️ Mis categorías</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div class="field" style="flex:1;min-width:170px;margin:0">
+        <label>Nueva categoría</label>
+        <input type="text" id="nueva-categoria" maxlength="24" placeholder="Ej: Bolsos">
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-agregar-categoria" type="button">➕ Agregar</button>
     </div>
+    <div class="list" id="lista-categorias" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🗂️ Catálogo</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px" id="filtros-categoria"></div>
     <div class="field" style="margin-bottom:10px"><input type="search" id="buscar-inventario" placeholder="🔍 Buscar producto"></div>
     <div class="list" id="lista-inventario"><div class="empty-state"><div class="emoji">📦</div>No hay productos</div></div>
   </div>
@@ -353,9 +359,15 @@
 import { hoyLocal, perteneceAlMes, esAnteriorA } from './src/domain/dates.js';
 import { filtrarPor } from './src/domain/search.js';
 import { validarCliente, normalizarDni, formatearDni } from './src/domain/customers.js';
+import { validarCategoria, agregarCategoria, eliminarCategoria, puedeEliminarse,
+         categoriasDesdeProductos, sonLaMisma } from './src/domain/categories.js';
 
 let data = JSON.parse(localStorage.getItem('ac_data') || '{"clientes":[],"productos":[],"ventas":[],"recordatorios":[]}');
 if(!data.recordatorios) data.recordatorios = [];
+// Catalogos guardados con versiones anteriores no traen la lista de
+// categorias: se reconstruye con las iniciales mas las que los productos ya
+// estuvieran usando, para que ninguno quede fuera de los filtros.
+if(!data.categorias) { data.categorias = categoriasDesdeProductos(data.productos); save(); }
 function save() { localStorage.setItem('ac_data', JSON.stringify(data)); }
 function fmt(n) { return 'L ' + parseFloat(n||0).toFixed(2); }
 function today() { return hoyLocal(); }
@@ -387,7 +399,7 @@ function showPage(id, btn) {
   if(btn) btn.classList.add('active');
   if(id==='inicio') renderInicio();
   if(id==='clientes') renderClientes();
-  if(id==='inventario') renderInventario('Todas');
+  if(id==='inventario') { renderCategorias(); renderInventario(catActual); }
   if(id==='precios') { calcPrecio(); renderTablaRef(); }
   if(id==='recordatorios') initRecordatorios();
   if(id==='venta') initVenta();
@@ -542,23 +554,87 @@ function filtrarInv(cat, btn) {
   renderInventario(cat);
 }
 
+// ── CATEGORIAS ──
+// Las administra la usuaria y se guardan junto a sus datos. Las iniciales
+// tienen icono propio; las que ella cree usan uno generico.
+const EMOJI_CATEGORIA = { 'Joyería':'💍', Maquillaje:'💄', Sandalias:'👡', Perfumes:'🌸', Otro:'📦' };
+const EMOJI_GENERICO = '🏷️';
+
+function emojiDe(categoria) {
+  const conocida = Object.keys(EMOJI_CATEGORIA).find(c => sonLaMisma(c, categoria));
+  return conocida ? EMOJI_CATEGORIA[conocida] : EMOJI_GENERICO;
+}
+
+/** Redibuja los tres lugares donde aparecen las categorias. */
+function renderCategorias() {
+  const seleccion = document.getElementById('inv-categoria');
+  const elegida = seleccion.value;
+  seleccion.innerHTML = data.categorias
+    .map(c => `<option value="${escaparHtml(c)}">${escaparHtml(c)}</option>`).join('');
+  if(data.categorias.includes(elegida)) seleccion.value = elegida;
+
+  document.getElementById('filtros-categoria').innerHTML =
+    `<button class="btn btn-sm btn-ghost${catActual==='Todas'?' active-cat':''}" data-cat="Todas">Todas</button>` +
+    data.categorias.map(c =>
+      `<button class="btn btn-sm btn-ghost${sonLaMisma(catActual,c)?' active-cat':''}" data-cat="${escaparHtml(c)}">${emojiDe(c)} ${escaparHtml(c)}</button>`
+    ).join('');
+
+  document.getElementById('lista-categorias').innerHTML = data.categorias.map(c => {
+    const enUso = data.productos.filter(p => sonLaMisma(p.categoria, c)).length;
+    return `<div class="list-item">
+      <span style="font-size:17px">${emojiDe(c)}</span>
+      <div class="item-name">${escaparHtml(c)}</div>
+      <span class="item-meta" style="margin-left:auto">${enUso} producto(s)</span>
+      <button class="btn btn-sm btn-danger" data-borrar-categoria="${escaparHtml(c)}">✕</button>
+    </div>`;
+  }).join('');
+}
+
+/** Agrega la categoria que escribio la usuaria. */
+function guardarCategoria() {
+  const campo = document.getElementById('nueva-categoria');
+  const resultado = validarCategoria(campo.value, data.categorias);
+
+  if(!resultado.valido) { showToast('⚠️ ' + resultado.error); return; }
+
+  data.categorias = agregarCategoria(data.categorias, resultado.nombre);
+  save();
+  campo.value = '';
+  showToast('✅ Categoría agregada: ' + resultado.nombre);
+  renderCategorias();
+}
+
+/** Elimina una categoria, solo si ningun producto la esta usando. */
+function borrarCategoria(nombre) {
+  const permiso = puedeEliminarse(nombre, data.productos);
+
+  if(!permiso.puede) { showToast('⚠️ ' + permiso.motivo); return; }
+  if(!confirm('¿Eliminar la categoría "' + nombre + '"?')) return;
+
+  data.categorias = eliminarCategoria(data.categorias, nombre);
+  if(sonLaMisma(catActual, nombre)) catActual = 'Todas';
+  save();
+  showToast('🗑️ Categoría eliminada');
+  renderCategorias();
+  renderInventario(catActual);
+}
+
 function renderInventario(cat) {
   const consulta = document.getElementById('buscar-inventario')?.value || '';
   const porCategoria = data.productos.filter(p=>cat==='Todas'||p.categoria===cat);
   const lista = filtrarPor(porCategoria, consulta, ['nombre','categoria']);
   const container = document.getElementById('lista-inventario');
   if(!lista.length) { container.innerHTML = '<div class="empty-state"><div class="emoji">📦</div>No hay productos</div>'; return; }
-  const catEmoji = {Joyería:'💍',Maquillaje:'💄',Sandalias:'👡',Perfumes:'🌸',Otro:'📦'};
   container.innerHTML = lista.map(p => {
     const m = p.costo>0?((p.precio-p.costo)/p.costo*100).toFixed(0):0;
     const dot = p.stock>5?'dot-green':p.stock>0?'dot-yellow':'dot-red';
-    return `<div class="list-item"><span style="font-size:18px">${catEmoji[p.categoria]||'📦'}</span><div style="flex:1"><div class="item-name">${p.nombre} <span class="dot ${dot}"></span></div><div class="item-meta">Costo: ${fmt(p.costo)} · Venta: ${fmt(p.precio)} · ${m}% ganancia</div></div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap"><span class="badge badge-gold">Stock: ${p.stock}</span><button class="btn btn-sm btn-ghost" onclick="abrirEditarProducto('${p.id}')">✏️</button><button class="btn btn-sm btn-danger" onclick="eliminarProducto('${p.id}')">✕</button></div></div>`;
+    return `<div class="list-item"><span style="font-size:18px">${emojiDe(p.categoria)}</span><div style="flex:1"><div class="item-name">${p.nombre} <span class="dot ${dot}"></span></div><div class="item-meta">Costo: ${fmt(p.costo)} · Venta: ${fmt(p.precio)} · ${m}% ganancia</div></div><div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap"><span class="badge badge-gold">Stock: ${p.stock}</span><button class="btn btn-sm btn-ghost" onclick="abrirEditarProducto('${p.id}')">✏️</button><button class="btn btn-sm btn-danger" onclick="eliminarProducto('${p.id}')">✕</button></div></div>`;
   }).join('');
 }
 
 function abrirEditarProducto(id) {
   const p = data.productos.find(x=>x.id===id); if(!p) return;
-  const cats = ['Joyería','Maquillaje','Sandalias','Perfumes','Otro'];
+  const cats = data.categorias;
   document.getElementById('modal-producto-body').innerHTML = `
     <div class="form-grid form-grid-2" style="margin-bottom:12px">
       <div class="field"><label>Nombre</label><input type="text" id="ep-nombre" value="${p.nombre}"></div>
@@ -1019,11 +1095,11 @@ Object.assign(window, {
   abrirEditarProducto, abrirPagoDesdeRec, addVentaItem, ajustarStock,
   calcEpMargen, calcEpPrecio, calcMargenInv, calcPrecio,
   calcPrecioInv, closeModal, descartarRec, dismissNotif,
-  editarRecordatorio, eliminarProducto, filtrarInv, filtrarRec,
-  guardarCliente, guardarEdicionProducto, guardarEdicionRec, guardarProducto,
-  guardarRecordatorio, guardarVenta, limpiarVenta, notifRegistrarPago,
-  openVentaDetalle, registrarAbono, removeItem, renderInicio,
-  showPage, syncSlider, updateItem, updatePagoFields,
+  editarRecordatorio, eliminarProducto, filtrarRec, guardarCliente,
+  guardarEdicionProducto, guardarEdicionRec, guardarProducto, guardarRecordatorio,
+  guardarVenta, limpiarVenta, notifRegistrarPago, openVentaDetalle,
+  registrarAbono, removeItem, renderInicio, showPage,
+  syncSlider, updateItem, updatePagoFields,
 });
 
 // ── Conexion de eventos ──────────────────────────────────────────────────
@@ -1080,6 +1156,23 @@ contenedorItems.addEventListener('mousedown', (evento) => {
   selectProd(fila, opcion.dataset.valor);
 });
 
+// Categorias: alta, baja y filtros. Por delegacion, porque los botones se
+// vuelven a dibujar cada vez que cambia la lista.
+document.getElementById('btn-agregar-categoria').addEventListener('click', guardarCategoria);
+document.getElementById('nueva-categoria').addEventListener('keydown', (evento) => {
+  if(evento.key === 'Enter') guardarCategoria();
+});
+
+document.getElementById('lista-categorias').addEventListener('click', (evento) => {
+  const boton = evento.target.closest('[data-borrar-categoria]');
+  if(boton) borrarCategoria(boton.dataset.borrarCategoria);
+});
+
+document.getElementById('filtros-categoria').addEventListener('click', (evento) => {
+  const boton = evento.target.closest('[data-cat]');
+  if(boton) filtrarInv(boton.dataset.cat, boton);
+});
+
 // Un clic fuera cierra el panel abierto.
 document.addEventListener('mousedown', (evento) => {
   if(!evento.target.closest('.campo-busqueda')) cerrarSugerencias();
@@ -1091,6 +1184,7 @@ document.addEventListener('keydown', (evento) => {
 });
 
 // ── INIT ──
+renderCategorias();
 initFiltroMeses();
 renderInicio();
 initVenta();
