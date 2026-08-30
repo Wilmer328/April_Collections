@@ -9,6 +9,7 @@ Formato del nombre: `NNNN-titulo-en-kebab-case.md`
 | ADR | Decision | Estado |
 |-----|----------|--------|
 | [0001](0001-autenticacion-con-google-via-supabase.md) | Autenticacion con Google mediante Supabase Auth | Aceptada |
+| [0002](0002-estrategia-de-notificaciones.md) | Estrategia de notificaciones de cobro | Aceptada |
 
 ## Pendientes
 

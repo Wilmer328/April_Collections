@@ -304,6 +304,11 @@
     <div class="field" style="margin-top:8px"><label>Nota (opcional)</label><input type="text" id="rec-nota" placeholder='Ej: "Me dijo que paga en la mañana"'></div>
     <div class="btn-row"><button class="btn btn-primary" onclick="guardarRecordatorio()">🔔 Agregar recordatorio</button></div>
   </div>
+  <div class="card">
+    <div class="card-title">🔔 Avisos en este dispositivo</div>
+    <div id="estado-notificaciones"></div>
+  </div>
+
   <div id="rec-alertas-hoy"></div>
   <div class="card">
     <div class="card-title">📋 Todos los recordatorios</div>
@@ -347,7 +352,7 @@
   </div>
   <div style="display:flex;gap:7px;margin-top:10px">
     <button id="notif-pagar-btn" class="btn btn-success btn-sm" onclick="notifRegistrarPago()">💰 Registrar pago</button>
-    <button class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:#fff;border:none" onclick="dismissNotif()">Más tarde</button>
+    <button class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:#fff;border:none" onclick="posponerNotif()">⏰ En un rato</button>
   </div>
 </div>
 
@@ -361,6 +366,8 @@ import { filtrarPor } from './src/domain/search.js';
 import { validarCliente, normalizarDni, formatearDni } from './src/domain/customers.js';
 import { validarCategoria, agregarCategoria, eliminarCategoria, puedeEliminarse,
          categoriasDesdeProductos, sonLaMisma } from './src/domain/categories.js';
+import { pendientesDeAvisar, describirMomento, MINUTOS_ANTICIPACION,
+         MINUTOS_ENTRE_INSISTENCIAS } from './src/domain/notifications.js';
 
 let data = JSON.parse(localStorage.getItem('ac_data') || '{"clientes":[],"productos":[],"ventas":[],"recordatorios":[]}');
 if(!data.recordatorios) data.recordatorios = [];
@@ -944,6 +951,7 @@ function initRecordatorios() {
   sel.innerHTML = '<option value="">— Selecciona —</option>' + data.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
   sel.onchange = () => cargarVentasPendientesRec(sel.value);
   document.getElementById('rec-fecha').min = today();
+  renderEstadoNotificaciones();
   renderRecordatoriosHoy();
   renderRecordatorios(recFiltroActual);
 }
@@ -1055,31 +1063,146 @@ function updateNotifBadge() {
   badge.textContent=activos; badge.style.display=activos>0?'inline-block':'none';
 }
 
+// ── AVISOS DE COBRO ──
+// La regla de cuando avisar vive en src/domain/notifications.js y esta cubierta
+// por pruebas. Aqui solo se decide como mostrarlo.
+//
+// ALCANCE: estos avisos llegan mientras la aplicacion este abierta, aunque sea
+// en una pestana de fondo o minimizada. Con la aplicacion CERRADA hace falta
+// Web Push con service worker y un servidor que dispare el envio; eso llega en
+// la Etapa 6, cuando exista backend. Ver docs/adr/0002.
+
+/** Pinta el estado del permiso y el boton para concederlo. */
+function renderEstadoNotificaciones() {
+  const caja = document.getElementById('estado-notificaciones');
+  if(!caja) return;
+
+  if(!('Notification' in window)) {
+    caja.innerHTML = `<div class="alert alert-warning">Este navegador no admite avisos del sistema. Los recordatorios seguiran apareciendo dentro de la aplicacion.</div>`;
+    return;
+  }
+
+  const explicacion = `Te avisaremos <strong>${MINUTOS_ANTICIPACION} minutos antes</strong> de cada cobro, y el aviso insistira cada ${MINUTOS_ENTRE_INSISTENCIAS} minutos hasta que lo atiendas.`;
+
+  if(Notification.permission === 'granted') {
+    caja.innerHTML = `<div class="alert" style="background:var(--success-light);color:var(--success)">✅ Avisos activados en este dispositivo. ${explicacion}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Solo llegan con la aplicacion abierta, aunque este en segundo plano.</div>`;
+    return;
+  }
+
+  if(Notification.permission === 'denied') {
+    caja.innerHTML = `<div class="alert alert-danger">Los avisos estan bloqueados en este navegador. Para activarlos, abre los permisos del sitio y permite las notificaciones.</div>`;
+    return;
+  }
+
+  caja.innerHTML = `<div style="font-size:13px;color:var(--muted);margin-bottom:10px">${explicacion}</div>
+    <button class="btn btn-primary btn-sm" id="btn-activar-notif" type="button">🔔 Activar avisos en este dispositivo</button>`;
+}
+
+/** Pide el permiso. Debe salir de un clic: los navegadores lo exigen. */
+async function activarNotificaciones() {
+  try {
+    const permiso = await Notification.requestPermission();
+    renderEstadoNotificaciones();
+
+    if(permiso === 'granted') {
+      showToast('✅ Avisos activados');
+      new Notification('April Collections', { body: 'Listo. Te avisaremos antes de cada cobro.' });
+    } else {
+      showToast('⚠️ No se concedio el permiso');
+    }
+  } catch (error) {
+    console.error('No se pudo pedir el permiso de notificaciones:', error);
+    showToast('⚠️ No se pudo activar los avisos');
+  }
+}
+
+/** Lanza el aviso del sistema operativo. */
+function notificarEnSistema(r) {
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const cl = data.clientes.find(c => c.id === r.clienteId);
+  const v = r.ventaId ? data.ventas.find(x => x.id === r.ventaId) : null;
+  const pendiente = v ? v.total - (v.abonos||[]).reduce((suma,a) => suma + a.monto, 0) : 0;
+
+  const lineas = ['El cobro ' + describirMomento(r)];
+  if(v) lineas.push('Debe ' + fmt(pendiente));
+  if(r.nota) lineas.push(r.nota);
+
+  try {
+    const aviso = new Notification('🔔 Cobrar a ' + (cl ? cl.nombre : 'clienta'), {
+      body: lineas.join(' · '),
+      // Misma etiqueta para el mismo cobro: al insistir se reemplaza el aviso
+      // anterior en lugar de apilar copias.
+      tag: 'cobro-' + r.id,
+      // Permanece en pantalla hasta que la usuaria la atienda, en vez de
+      // desvanecerse sola a los pocos segundos.
+      requireInteraction: true,
+    });
+
+    aviso.onclick = () => {
+      window.focus();
+      aviso.close();
+      if(r.ventaId) abrirPagoDesdeRec(r.id);
+    };
+  } catch (error) {
+    console.warn('No se pudo mostrar el aviso del sistema:', error);
+  }
+}
+
+/** Revisa si toca avisar de algun cobro. Corre cada 30 segundos. */
 function checkRecordatorios() {
-  const ahora=new Date(), hoy=today();
-  const horaAhora=ahora.getHours().toString().padStart(2,'0')+':'+ahora.getMinutes().toString().padStart(2,'0');
-  data.recordatorios.forEach(r=>{
-    if(r.estado!=='pendiente'||r.fecha!==hoy||r.hora!==horaAhora||r._notificado) return;
-    r._notificado=true; save(); mostrarNotifPopup(r);
-  });
+  const cola = pendientesDeAvisar(data.recordatorios);
+
+  if(cola.length) {
+    // Se atiende el mas urgente: hay un solo popup y apilar avisos abruma.
+    const siguiente = cola[0];
+    siguiente.avisadoEn = new Date().toISOString();
+    save();
+    mostrarNotifPopup(siguiente);
+    notificarEnSistema(siguiente);
+  }
+
   updateNotifBadge();
 }
 
 function mostrarNotifPopup(r) {
-  notifActiva=r;
-  const cl=data.clientes.find(c=>c.id===r.clienteId);
-  const v=r.ventaId?data.ventas.find(x=>x.id===r.ventaId):null;
-  const pend=v?v.total-(v.abonos||[]).reduce((s,a)=>s+a.monto,0):0;
-  document.getElementById('notif-popup-text').innerHTML=`<strong>${cl?cl.nombre:'Cliente'}</strong> ${v?'debe <strong>'+fmt(pend)+'</strong>':''}<br>${r.nota?'<em>'+r.nota+'</em>':''}`;
-  document.getElementById('notif-pagar-btn').style.display=v?'inline-flex':'none';
-  document.getElementById('notif-popup').style.display='block';
+  notifActiva = r;
+  const cl = data.clientes.find(c => c.id === r.clienteId);
+  const v = r.ventaId ? data.ventas.find(x => x.id === r.ventaId) : null;
+  const pendiente = v ? v.total - (v.abonos||[]).reduce((suma,a) => suma + a.monto, 0) : 0;
+
+  document.getElementById('notif-popup-text').innerHTML =
+    `<strong>${escaparHtml(cl ? cl.nombre : 'Cliente')}</strong> ${v ? 'debe <strong>'+fmt(pendiente)+'</strong>' : ''}` +
+    `<br><span style="opacity:.75">El cobro ${escaparHtml(describirMomento(r))}</span>` +
+    (r.nota ? `<br><em>${escaparHtml(r.nota)}</em>` : '');
+
+  document.getElementById('notif-pagar-btn').style.display = v ? 'inline-flex' : 'none';
+  document.getElementById('notif-popup').style.display = 'block';
 }
 
-function dismissNotif() { document.getElementById('notif-popup').style.display='none'; notifActiva=null; }
+/** Cerrar el aviso cuenta como haberlo visto: deja de insistir. */
+function dismissNotif() {
+  if(notifActiva) {
+    const r = data.recordatorios.find(x => x.id === notifActiva.id);
+    if(r) { r.visto = true; save(); }
+  }
+  document.getElementById('notif-popup').style.display = 'none';
+  notifActiva = null;
+}
+
+/** Posponer: se cierra pero volvera a avisar pasado el intervalo. */
+function posponerNotif() {
+  document.getElementById('notif-popup').style.display = 'none';
+  notifActiva = null;
+  showToast('⏰ Te recordamos en ' + MINUTOS_ENTRE_INSISTENCIAS + ' minutos');
+}
 
 function notifRegistrarPago() {
-  if(!notifActiva||!notifActiva.ventaId) return;
-  const recId=notifActiva.id; dismissNotif(); abrirPagoDesdeRec(recId);
+  if(!notifActiva || !notifActiva.ventaId) return;
+  const recId = notifActiva.id;
+  dismissNotif();
+  abrirPagoDesdeRec(recId);
 }
 
 // ── Puente temporal ──────────────────────────────────────────────────────
@@ -1098,8 +1221,8 @@ Object.assign(window, {
   editarRecordatorio, eliminarProducto, filtrarRec, guardarCliente,
   guardarEdicionProducto, guardarEdicionRec, guardarProducto, guardarRecordatorio,
   guardarVenta, limpiarVenta, notifRegistrarPago, openVentaDetalle,
-  registrarAbono, removeItem, renderInicio, showPage,
-  syncSlider, updateItem, updatePagoFields,
+  posponerNotif, registrarAbono, removeItem, renderInicio,
+  showPage, syncSlider, updateItem, updatePagoFields,
 });
 
 // ── Conexion de eventos ──────────────────────────────────────────────────
@@ -1171,6 +1294,10 @@ document.getElementById('lista-categorias').addEventListener('click', (evento) =
 document.getElementById('filtros-categoria').addEventListener('click', (evento) => {
   const boton = evento.target.closest('[data-cat]');
   if(boton) filtrarInv(boton.dataset.cat, boton);
+});
+
+document.getElementById('estado-notificaciones').addEventListener('click', (evento) => {
+  if(evento.target.closest('#btn-activar-notif')) activarNotificaciones();
 });
 
 // Un clic fuera cierra el panel abierto.
