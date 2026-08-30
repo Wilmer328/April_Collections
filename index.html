@@ -42,55 +42,8 @@
   .hero__actions { display: flex; gap: 12px; flex-wrap: wrap; }
 
   .section { max-width: 1080px; margin: 0 auto; padding: 56px 24px; }
-
-  /* Antes era blanco liso. El degradado hacia el crema de girasol le da
-     calidez sin restar legibilidad: el texto sobre este fondo se verificó
-     contra WCAG AA (14.6:1 el principal, 4.96:1 el secundario). */
-  .section--tinted {
-    background: linear-gradient(180deg, #fffefb 0%, var(--sun-light) 100%);
-    max-width: none;
-    position: relative;
-    overflow: hidden;
-  }
-  .section--tinted > .section__inner { max-width: 1080px; margin: 0 auto; position: relative; z-index: 1; }
-
-  /* ── Girasoles ────────────────────────────────────────────────────────
-     Dibujados como SVG en línea, no como imágenes: pesan unos cientos de
-     bytes, escalan sin pixelarse a cualquier pantalla, no dependen de la red
-     y no añaden un origen externo que la CSP de la Etapa 7 tendría que
-     permitir. Son decorativos, así que van con aria-hidden. */
-
-  .flor { display: block; pointer-events: none; }
-
-  .flor--hero {
-    position: absolute;
-    top: -70px; right: -90px;
-    width: 340px; height: 340px;
-    opacity: 0.42;
-    z-index: 0;
-  }
-  .anim .flor--hero { animation: ac-girar 60s linear infinite; }
-
-  .flor--seccion {
-    position: absolute;
-    bottom: -80px; left: -70px;
-    width: 240px; height: 240px;
-    opacity: 0.3;
-    z-index: 0;
-  }
-  .anim .flor--seccion { animation: ac-girar 90s linear infinite reverse; }
-
-  .flor--pie { width: 26px; height: 26px; flex-shrink: 0; opacity: 0.9; }
-
-  @keyframes ac-girar {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
-
-  @media (max-width: 640px) {
-    .flor--hero { width: 220px; height: 220px; top: -50px; right: -70px; }
-    .flor--seccion { display: none; }
-  }
+  .section--tinted { background: var(--white); max-width: none; }
+  .section--tinted > .section__inner { max-width: 1080px; margin: 0 auto; }
 
   .section__title {
     font-family: var(--font-display); font-size: clamp(24px, 4vw, 32px);
@@ -175,15 +128,15 @@
   .hero::before {
     content: '';
     position: absolute;
-    bottom: -140px; left: -110px;
-    width: 380px; height: 380px;
+    top: -90px; right: -70px;
+    width: 400px; height: 400px;
     border-radius: 50%;
     background: radial-gradient(circle, var(--rose-light) 0%, rgba(245, 221, 225, 0) 70%);
     pointer-events: none;
     z-index: 0;
   }
   .anim .hero::before { animation: ac-float 16s ease-in-out infinite; }
-  .hero > *:not(.flor) { position: relative; z-index: 1; }
+  .hero > * { position: relative; z-index: 1; }
 
   /* Aparición al entrar en pantalla. La clase is-visible la pone
      landing-animations.js mediante IntersectionObserver. */
@@ -235,45 +188,6 @@
 </head>
 <body class="ac-page">
 
-<!-- Girasol reutilizable. Se define una sola vez y se instancia con <use>,
-     así el dibujo no se repite en el HTML. Dos coronas de pétalos giradas
-     entre sí dan sensación de volumen. -->
-<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
-  <symbol id="girasol" viewBox="-50 -50 100 100">
-    <defs><ellipse id="petalo-girasol" cx="0" cy="-31" rx="7.5" ry="17" /></defs>
-    <g fill="var(--sun-deep)">
-      <use href="#petalo-girasol" transform="rotate(15)" />
-      <use href="#petalo-girasol" transform="rotate(45)" />
-      <use href="#petalo-girasol" transform="rotate(75)" />
-      <use href="#petalo-girasol" transform="rotate(105)" />
-      <use href="#petalo-girasol" transform="rotate(135)" />
-      <use href="#petalo-girasol" transform="rotate(165)" />
-      <use href="#petalo-girasol" transform="rotate(195)" />
-      <use href="#petalo-girasol" transform="rotate(225)" />
-      <use href="#petalo-girasol" transform="rotate(255)" />
-      <use href="#petalo-girasol" transform="rotate(285)" />
-      <use href="#petalo-girasol" transform="rotate(315)" />
-      <use href="#petalo-girasol" transform="rotate(345)" />
-    </g>
-    <g fill="var(--sun)">
-      <use href="#petalo-girasol" transform="rotate(0)" />
-      <use href="#petalo-girasol" transform="rotate(30)" />
-      <use href="#petalo-girasol" transform="rotate(60)" />
-      <use href="#petalo-girasol" transform="rotate(90)" />
-      <use href="#petalo-girasol" transform="rotate(120)" />
-      <use href="#petalo-girasol" transform="rotate(150)" />
-      <use href="#petalo-girasol" transform="rotate(180)" />
-      <use href="#petalo-girasol" transform="rotate(210)" />
-      <use href="#petalo-girasol" transform="rotate(240)" />
-      <use href="#petalo-girasol" transform="rotate(270)" />
-      <use href="#petalo-girasol" transform="rotate(300)" />
-      <use href="#petalo-girasol" transform="rotate(330)" />
-    </g>
-    <circle r="15" fill="var(--sun-center)" />
-    <circle r="15" fill="none" stroke="var(--sun-deep)" stroke-width="2.5" opacity="0.55" />
-  </symbol>
-</svg>
-
 <header class="site-header">
   <a class="ac-brand" href="./index.html">
     <span class="ac-brand__icon" aria-hidden="true">💎</span>
@@ -288,7 +202,6 @@
 
 <main>
   <section class="hero">
-    <svg class="flor flor--hero" aria-hidden="true"><use href="#girasol" /></svg>
     <p class="hero__eyebrow">Venta por catálogo</p>
     <h1 class="hero__title">Tu negocio de catálogo, <span>por fin ordenado</span></h1>
     <p class="hero__lead">
@@ -302,7 +215,6 @@
   </section>
 
   <section class="section section--tinted">
-    <svg class="flor flor--seccion" aria-hidden="true"><use href="#girasol" /></svg>
     <div class="section__inner">
       <h2 class="section__title reveal">El problema</h2>
       <p class="section__lead reveal">
@@ -368,10 +280,7 @@
 
 <footer class="site-footer">
   <div class="site-footer__inner">
-    <span style="display:inline-flex;align-items:center;gap:8px">
-      <svg class="flor flor--pie" aria-hidden="true"><use href="#girasol" /></svg>
-      April Collections · Proyecto Capstone de Ingeniería de Software 2
-    </span>
+    <span>April Collections · Proyecto Capstone de Ingeniería de Software 2</span>
     <span>
       Desarrollado por Wilmer Sánchez ·
       <a href="https://github.com/Wilmer328/April_Collections" rel="noopener">Código en GitHub</a>
