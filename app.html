@@ -155,11 +155,12 @@
   <div class="card">
     <div class="card-title">🛍️ Registrar venta</div>
     <div class="form-grid form-grid-2">
-      <div class="field"><label>Cliente</label><select id="venta-cliente"><option value="">— Selecciona —</option></select></div>
+      <div class="field"><label>Cliente</label><input type="search" id="buscar-venta-cliente" placeholder="🔍 Buscar clienta" oninput="initVenta()" style="margin-bottom:5px"><select id="venta-cliente"><option value="">— Selecciona —</option></select></div>
       <div class="field"><label>Fecha</label><input type="date" id="venta-fecha"></div>
     </div>
     <div class="divider"></div>
     <div class="section-label">Productos</div>
+    <div class="field" style="margin-bottom:8px"><input type="search" id="buscar-venta-producto" placeholder="🔍 Filtrar productos del catálogo" oninput="renderVentaItems()"></div>
     <div class="venta-items" id="venta-items-container"></div>
     <button class="btn btn-ghost btn-sm" onclick="addVentaItem()" style="margin-top:7px">+ Agregar producto</button>
     <div class="divider"></div>
@@ -190,12 +191,15 @@
     <div class="card-title">👤 Agregar cliente</div>
     <div class="form-grid form-grid-2">
       <div class="field"><label>Nombre completo</label><input type="text" id="cliente-nombre" placeholder="Nombre de la cliente"></div>
+      <div class="field"><label>DNI (opcional)</label><input type="text" id="cliente-dni" inputmode="numeric" maxlength="15" placeholder="0801-1999-12345"></div>
       <div class="field"><label>Teléfono (opcional)</label><input type="tel" id="cliente-tel" placeholder="9999-9999"></div>
     </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">El DNI sirve para distinguir clientas con el mismo nombre. Puedes dejarlo vacío.</div>
     <div class="btn-row"><button class="btn btn-primary" onclick="guardarCliente()">➕ Agregar cliente</button></div>
   </div>
   <div class="card">
     <div class="card-title">👥 Mis clientes</div>
+    <div class="field" style="margin-bottom:10px"><input type="search" id="buscar-cliente" placeholder="🔍 Buscar por nombre, DNI o teléfono" oninput="renderClientes()"></div>
     <div class="list" id="lista-clientes"><div class="empty-state"><div class="emoji">👭</div>Aún no hay clientes</div></div>
   </div>
 </div>
@@ -224,6 +228,7 @@
       <button class="btn btn-sm btn-ghost" data-cat="Sandalias" onclick="filtrarInv('Sandalias',this)">👡</button>
       <button class="btn btn-sm btn-ghost" data-cat="Perfumes" onclick="filtrarInv('Perfumes',this)">🌸</button>
     </div>
+    <div class="field" style="margin-bottom:10px"><input type="search" id="buscar-inventario" placeholder="🔍 Buscar producto" oninput="renderInventario(catActual)"></div>
     <div class="list" id="lista-inventario"><div class="empty-state"><div class="emoji">📦</div>No hay productos</div></div>
   </div>
 </div>
@@ -317,6 +322,8 @@
 // La logica de negocio vive en src/domain/: modulos puros, sin DOM, cubiertos
 // por pruebas. Esta pagina la consume en lugar de tener su propia copia.
 import { hoyLocal, perteneceAlMes, esAnteriorA } from './src/domain/dates.js';
+import { filtrarPor } from './src/domain/search.js';
+import { validarCliente, normalizarDni, formatearDni } from './src/domain/customers.js';
 
 let data = JSON.parse(localStorage.getItem('ac_data') || '{"clientes":[],"productos":[],"ventas":[],"recordatorios":[]}');
 if(!data.recordatorios) data.recordatorios = [];
@@ -436,25 +443,32 @@ function registrarAbono(ventaId) {
 // ── CLIENTES ──
 function guardarCliente() {
   const nombre = document.getElementById('cliente-nombre').value.trim();
-  if(!nombre) { showToast('⚠️ Escribe el nombre'); return; }
+  const dni = normalizarDni(document.getElementById('cliente-dni').value);
   const tel = document.getElementById('cliente-tel').value.trim();
-  data.clientes.push({ id: Date.now()+'', nombre, tel });
+
+  // La regla vive en src/domain/customers.js y esta cubierta por pruebas.
+  const resultado = validarCliente({ nombre, dni }, data.clientes);
+  if(!resultado.valido) { showToast('⚠️ ' + resultado.error); return; }
+
+  data.clientes.push({ id: Date.now()+'', nombre, dni, tel });
   save();
-  document.getElementById('cliente-nombre').value = '';
-  document.getElementById('cliente-tel').value = '';
-  showToast('✅ Cliente agregada: ' + nombre);
+  ['cliente-nombre','cliente-dni','cliente-tel'].forEach(id => document.getElementById(id).value = '');
+  showToast(resultado.aviso ? 'ℹ️ ' + resultado.aviso : '✅ Cliente agregada: ' + nombre);
   renderClientes();
 }
 
 function renderClientes() {
   const container = document.getElementById('lista-clientes');
   if(!data.clientes.length) { container.innerHTML = '<div class="empty-state"><div class="emoji">👭</div>Aún no hay clientes</div>'; return; }
-  container.innerHTML = data.clientes.map(c => {
+  const consulta = document.getElementById('buscar-cliente')?.value || '';
+  const visibles = filtrarPor(data.clientes, consulta, ['nombre','dni','tel']);
+  if(!visibles.length) { container.innerHTML = '<div class="empty-state"><div class="emoji">🔍</div>Ninguna clienta coincide con "'+consulta+'"</div>'; return; }
+  container.innerHTML = visibles.map(c => {
     const ventasCl = data.ventas.filter(v=>v.clienteId===c.id);
     const total = ventasCl.reduce((s,v)=>s+v.total,0);
     const cobrado = ventasCl.reduce((s,v)=>s+(v.abonos||[]).reduce((x,a)=>x+a.monto,0),0);
     const pend = total - cobrado;
-    return `<div class="list-item"><div style="width:32px;height:32px;background:var(--rose-light);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">👤</div><div><div class="item-name">${c.nombre}</div><div class="item-meta">${c.tel||'Sin teléfono'} · ${ventasCl.length} compras</div></div><div style="text-align:right;margin-left:auto">${pend>0.01?`<span class="badge badge-red">Debe ${fmt(pend)}</span>`:`<span class="badge badge-green">Al día ✓</span>`}</div></div>`;
+    return `<div class="list-item"><div style="width:32px;height:32px;background:var(--rose-light);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">👤</div><div><div class="item-name">${c.nombre}</div><div class="item-meta">${c.dni?formatearDni(c.dni)+' · ':''}${c.tel||'Sin teléfono'} · ${ventasCl.length} compras</div></div><div style="text-align:right;margin-left:auto">${pend>0.01?`<span class="badge badge-red">Debe ${fmt(pend)}</span>`:`<span class="badge badge-green">Al día ✓</span>`}</div></div>`;
   }).join('');
 }
 
@@ -488,7 +502,9 @@ function filtrarInv(cat, btn) {
 }
 
 function renderInventario(cat) {
-  const lista = data.productos.filter(p=>cat==='Todas'||p.categoria===cat);
+  const consulta = document.getElementById('buscar-inventario')?.value || '';
+  const porCategoria = data.productos.filter(p=>cat==='Todas'||p.categoria===cat);
+  const lista = filtrarPor(porCategoria, consulta, ['nombre','categoria']);
   const container = document.getElementById('lista-inventario');
   if(!lista.length) { container.innerHTML = '<div class="empty-state"><div class="emoji">📦</div>No hay productos</div>'; return; }
   const catEmoji = {Joyería:'💍',Maquillaje:'💄',Sandalias:'👡',Perfumes:'🌸',Otro:'📦'};
@@ -561,7 +577,11 @@ let ventaItems = [];
 function initVenta() {
   const sel = document.getElementById('venta-cliente');
   const cur = sel.value;
-  sel.innerHTML = '<option value="">— Selecciona —</option>' + data.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  const consultaCl = document.getElementById('buscar-venta-cliente')?.value || '';
+  // La clienta ya elegida se mantiene en la lista aunque no coincida con el
+  // filtro; si no, al teclear se perderia la seleccion.
+  const clientesVisibles = data.clientes.filter(c => c.id===cur || filtrarPor([c], consultaCl, ['nombre','dni','tel']).length);
+  sel.innerHTML = '<option value="">— Selecciona —</option>' + clientesVisibles.map(c=>`<option value="${c.id}">${c.nombre}${c.dni?' · '+formatearDni(c.dni):''}</option>`).join('');
   if(cur) sel.value = cur;
   const fi = document.getElementById('venta-fecha');
   fi.value = today(); fi.min = today();
@@ -571,14 +591,27 @@ function initVenta() {
 
 function addVentaItem() { ventaItems.push({productoId:'',nombre:'',precio:0,costo:0,qty:1}); renderVentaItems(); }
 
+/**
+ * Indica si la fila tomo su producto del catalogo. En ese caso el precio lo
+ * manda Inventario y no se escribe a mano aqui: si se pudiera, dos ventas del
+ * mismo articulo podrian quedar con precios distintos sin que nadie se entere.
+ */
+function esDelCatalogo(item) { return Boolean(item.productoId) && item.productoId !== 'custom'; }
+
 function renderVentaItems() {
   const container = document.getElementById('venta-items-container');
   if(!ventaItems.length) { container.innerHTML=''; updateVentaTotals(); return; }
-  const prodOpts = data.productos.map(p=>`<option value="${p.id}" data-precio="${p.precio}" data-costo="${p.costo}" data-nombre="${p.nombre}" ${p.stock<=0?'disabled':''} style="${p.stock<=0?'color:#bbb':''}">${p.stock<=0?'✕ ':''} ${p.nombre} (${fmt(p.precio)})${p.stock<=0?' — Sin stock':' · Stock: '+p.stock}</option>`).join('');
+  const consultaProd = document.getElementById('buscar-venta-producto')?.value || '';
+  const catalogo = filtrarPor(data.productos, consultaProd, ['nombre','categoria']);
+  // El producto ya elegido en una fila sigue disponible aunque el filtro lo
+  // excluya, para no perder la seleccion al teclear.
+  const idsElegidos = new Set(ventaItems.map(i=>i.productoId));
+  const visibles = data.productos.filter(p=>catalogo.includes(p) || idsElegidos.has(p.id));
+  const prodOpts = visibles.map(p=>`<option value="${p.id}" data-precio="${p.precio}" data-costo="${p.costo}" data-nombre="${p.nombre}" ${p.stock<=0?'disabled':''} style="${p.stock<=0?'color:#bbb':''}">${p.stock<=0?'✕ ':''} ${p.nombre} (${fmt(p.precio)})${p.stock<=0?' — Sin stock':' · Stock: '+p.stock}</option>`).join('');
   container.innerHTML = ventaItems.map((item,i)=>`
     <div class="venta-item-row" id="vrow-${i}">
       <div class="field" style="margin:0"><label>Producto</label><select id="vsel-${i}" onchange="selectProd(${i},this)"><option value="">— Elige —</option>${prodOpts}<option value="custom">✏️ Otro</option></select></div>
-      <div class="field" style="margin:0"><label>Precio</label><input id="vprecio-${i}" type="number" value="${item.precio||''}" min="0" placeholder="0" oninput="updateItem(${i},'precio',this.value)"></div>
+      <div class="field" style="margin:0"><label>Precio${esDelCatalogo(item)?'':' *'}</label><input id="vprecio-${i}" type="number" value="${item.precio||''}" min="0" placeholder="0" oninput="updateItem(${i},'precio',this.value)" ${esDelCatalogo(item)?'readonly title="Definido en Inventario" style="background:var(--gold-light);cursor:not-allowed"':''}></div>
       <div class="field" style="margin:0"><label>Cantidad</label><input id="vqty-${i}" type="number" value="${item.qty}" min="1" oninput="updateItem(${i},'qty',this.value)"></div>
       <button class="venta-item-remove" onclick="removeItem(${i})">✕</button>
     </div>
@@ -590,12 +623,22 @@ function renderVentaItems() {
 
 function selectProd(i,sel) {
   const opt = sel.options[sel.selectedIndex];
-  if(sel.value==='custom') { ventaItems[i]={...ventaItems[i],productoId:'custom',nombre:'',precio:0,costo:0}; document.getElementById('vcustom-'+i).style.display='block'; document.getElementById('vprecio-'+i).value=''; }
-  else if(sel.value) { ventaItems[i]={...ventaItems[i],productoId:sel.value,nombre:opt.dataset.nombre,precio:parseFloat(opt.dataset.precio),costo:parseFloat(opt.dataset.costo)}; document.getElementById('vcustom-'+i).style.display='none'; document.getElementById('vprecio-'+i).value=opt.dataset.precio; }
-  else { ventaItems[i]={...ventaItems[i],productoId:'',nombre:'',precio:0}; document.getElementById('vcustom-'+i).style.display='none'; }
-  updateVentaTotals();
-}
 
+  if(sel.value === 'custom') {
+    // Producto libre: no esta en el catalogo, asi que el precio se escribe aqui.
+    ventaItems[i] = {...ventaItems[i], productoId:'custom', nombre:'', precio:0, costo:0};
+  } else if(sel.value) {
+    // Producto del catalogo: precio y costo los define Inventario.
+    ventaItems[i] = {...ventaItems[i], productoId:sel.value, nombre:opt.dataset.nombre,
+                     precio:parseFloat(opt.dataset.precio), costo:parseFloat(opt.dataset.costo)};
+  } else {
+    ventaItems[i] = {...ventaItems[i], productoId:'', nombre:'', precio:0, costo:0};
+  }
+
+  // Se vuelve a dibujar en lugar de tocar el DOM a mano: es lo que aplica o
+  // quita el bloqueo del campo de precio segun el producto elegido.
+  renderVentaItems();
+}
 function updateItem(i,field,val) { ventaItems[i][field]=field==='qty'?parseInt(val)||1:field==='precio'?parseFloat(val)||0:val; updateVentaTotals(); }
 function removeItem(i) { ventaItems.splice(i,1); renderVentaItems(); }
 
