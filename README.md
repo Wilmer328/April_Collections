@@ -8,11 +8,33 @@ Proyecto Capstone de Ingeniería de Software 2.
 
 ---
 
-## ⚠️ Pendiente de completar
+## Cliente
 
-> **Cliente real:** este README debe declarar el nombre del negocio y de la
-> persona para quien se construye la aplicación (entregable 1). El dato no se
-> ha registrado todavía y **no debe inventarse**. Completar antes de la entrega.
+**Daysi Rosario Gomez** — April Collections, negocio de venta por catálogo
+(joyería, maquillaje, sandalias y perfumes) en Honduras.
+
+### Problema que se resolvió
+
+El negocio llevaba las cuentas en un cuaderno. Eso implicaba tres problemas
+concretos: el historial se perdía si el cuaderno se extraviaba, los abonos
+parciales quedaban anotados sueltos y nadie sabía con certeza quién debía
+cuánto, y los cobros prometidos se olvidaban.
+
+### Funcionalidad construida
+
+Una aplicación web con seis módulos conectados entre sí:
+
+| Módulo | Qué resuelve |
+|---|---|
+| Resumen del mes | Ventas, ganancia, margen y saldo por cobrar del período |
+| Registro de ventas | Varios productos por venta, al contado, con abono inicial o a crédito; descuenta el stock |
+| Clientes | Historial de compras y saldo pendiente por persona |
+| Inventario | Catálogo por categoría con costo, precio, margen y existencias |
+| Calculadora de precios | Precio de venta a partir del margen deseado |
+| Recordatorios de cobro | Agenda del cobro prometido, con cierre automático al saldarse la deuda |
+
+La regla que une el sistema: al registrar un abono, el saldo de la clienta y
+el recordatorio asociado se actualizan solos.
 
 ---
 
