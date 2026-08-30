@@ -313,12 +313,16 @@
 
 <div class="toast" id="toast"></div>
 
-<script>
+<script type="module">
+// La logica de negocio vive en src/domain/: modulos puros, sin DOM, cubiertos
+// por pruebas. Esta pagina la consume en lugar de tener su propia copia.
+import { hoyLocal, perteneceAlMes, esAnteriorA } from './src/domain/dates.js';
+
 let data = JSON.parse(localStorage.getItem('ac_data') || '{"clientes":[],"productos":[],"ventas":[],"recordatorios":[]}');
 if(!data.recordatorios) data.recordatorios = [];
 function save() { localStorage.setItem('ac_data', JSON.stringify(data)); }
 function fmt(n) { return 'L ' + parseFloat(n||0).toFixed(2); }
-function today() { return new Date().toISOString().slice(0,10); }
+function today() { return hoyLocal(); }
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
@@ -366,8 +370,7 @@ function renderInicio() {
   let ventasMes=0, numVentas=0, ganancia=0, cobradoHoy=0, porCobrar=0;
   let deudores = new Set();
   data.ventas.forEach(v => {
-    const d = new Date(v.fecha);
-    if(d.getMonth()===mes && d.getFullYear()===anio) {
+    if(perteneceAlMes(v.fecha, mes + 1, anio)) {
       ventasMes += v.total; numVentas++;
       const costo = v.items.reduce((s,i)=>s+(i.costo||0)*i.qty,0);
       ganancia += v.total - costo;
@@ -388,7 +391,7 @@ function renderInicio() {
   const ac = document.getElementById('alertas-container');
   ac.innerHTML = porCobrar > 0 ? `<div class="alert alert-warning">⚠️ Tienes <strong>${fmt(porCobrar)}</strong> pendientes de cobrar entre ${deudores.size} cliente(s).</div>` : '';
 
-  const sorted = [...data.ventas].filter(v=>{ const d=new Date(v.fecha); return d.getMonth()===mes && d.getFullYear()===anio; }).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const sorted = [...data.ventas].filter(v=>perteneceAlMes(v.fecha, mes + 1, anio)).sort((a,b)=>b.fecha.localeCompare(a.fecha));
   const container = document.getElementById('lista-ventas-recientes');
   if(!sorted.length) { container.innerHTML = '<div class="empty-state"><div class="emoji">🛍️</div>No hay ventas en este período</div>'; return; }
   container.innerHTML = sorted.map(v => {
@@ -718,7 +721,7 @@ function renderRecordatoriosHoy() {
 }
 
 function renderRecordatorios(fil) {
-  const hoy=today(), hoy_d=new Date(hoy);
+  const hoy=today();
   let lista=[...data.recordatorios].sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
   if(fil==='pendiente') lista=lista.filter(r=>r.estado==='pendiente');
   else if(fil==='hoy') lista=lista.filter(r=>r.fecha===hoy);
@@ -728,7 +731,7 @@ function renderRecordatorios(fil) {
     const cl=data.clientes.find(c=>c.id===r.clienteId);
     const v=r.ventaId?data.ventas.find(x=>x.id===r.ventaId):null;
     const pend=v?v.total-(v.abonos||[]).reduce((s,a)=>s+a.monto,0):0;
-    const rec_d=new Date(r.fecha), esHoy=r.fecha===hoy, esPasado=rec_d<hoy_d;
+    const esHoy=r.fecha===hoy, esPasado=esAnteriorA(r.fecha, hoy);
     const estadoColor=r.estado==='completado'?'badge-green':r.estado==='descartado'?'badge-gold':esHoy?'badge-red':'badge-rose';
     const estadoLabel=r.estado==='completado'?'Pagado ✓':r.estado==='descartado'?'Descartado':esHoy?'¡HOY!':esPasado?'Vencido':'Pendiente';
     return `<div class="list-item" style="flex-direction:column;align-items:stretch;gap:7px;${esPasado&&r.estado==='pendiente'?'border-left:3px solid var(--danger)':''}"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div style="font-size:18px">${r.estado==='completado'?'✅':'🔔'}</div><div style="flex:1"><div class="item-name">${cl?cl.nombre:'Cliente'}</div><div class="item-meta">📅 ${r.fecha} a las ${r.hora} ${v?'· Debe '+fmt(pend):''}</div>${r.nota?`<div class="item-meta" style="font-style:italic">"${r.nota}"</div>`:''}</div><span class="badge ${estadoColor}">${estadoLabel}</span></div>${r.estado==='pendiente'?`<div style="display:flex;gap:5px;flex-wrap:wrap">${v?`<button class="btn btn-success btn-sm" onclick="abrirPagoDesdeRec('${r.id}')">💰 Pago</button>`:''}<button class="btn btn-sm btn-ghost" onclick="editarRecordatorio('${r.id}')">✏️ Editar</button><button class="btn btn-sm btn-danger" onclick="descartarRec('${r.id}')">✕ Descartar</button></div>`:''}</div>`;
@@ -805,6 +808,27 @@ function notifRegistrarPago() {
   if(!notifActiva||!notifActiva.ventaId) return;
   const recId=notifActiva.id; dismissNotif(); abrirPagoDesdeRec(recId);
 }
+
+// ── Puente temporal ──────────────────────────────────────────────────────
+// Al pasar a modulo, el script dejo de compartir el ambito global, y los
+// atributos onclick del HTML resuelven sus funciones contra window. Este
+// bloque las expone explicitamente.
+//
+// Es deuda declarada, no un descuido: desaparece en la Etapa 2, cuando los
+// onclick se sustituyan por addEventListener. Esa migracion es ademas
+// requisito para activar la CSP estricta de la Etapa 7, que prohibe el
+// codigo inline.
+Object.assign(window, {
+  abrirEditarProducto, abrirPagoDesdeRec, addVentaItem, ajustarStock,
+  calcEpMargen, calcEpPrecio, calcMargenInv, calcPrecio,
+  calcPrecioInv, closeModal, descartarRec, dismissNotif,
+  editarRecordatorio, eliminarProducto, filtrarInv, filtrarRec,
+  guardarCliente, guardarEdicionProducto, guardarEdicionRec, guardarProducto,
+  guardarRecordatorio, guardarVenta, limpiarVenta, notifRegistrarPago,
+  openVentaDetalle, registrarAbono, removeItem, renderInicio,
+  selectProd, showPage, syncSlider, updateItem,
+  updatePagoFields,
+});
 
 // ── INIT ──
 initFiltroMeses();
