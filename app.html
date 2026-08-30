@@ -102,6 +102,30 @@
   .empty-state { text-align: center; padding: 28px 14px; color: var(--muted); font-size: 13px; }
   .empty-state .emoji { font-size: 28px; margin-bottom: 8px; }
   input[type=range] { accent-color: var(--rose); width: 100%; }
+  /* Autocompletado: panel de coincidencias bajo el campo de busqueda. */
+  .campo-busqueda { position: relative; }
+  .sugerencias {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 60;
+    background: var(--white); border: 1.5px solid var(--rose);
+    border-radius: 9px; margin-top: 3px; max-height: 230px; overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+  .sugerencias[hidden] { display: none; }
+  .sugerencia {
+    padding: 9px 12px; cursor: pointer; font-size: 13px;
+    border-bottom: 1px solid var(--border); display: flex;
+    justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .sugerencia:last-child { border-bottom: none; }
+  .sugerencia:hover { background: var(--rose-light); }
+  .sugerencia[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+  .sugerencia[aria-disabled="true"]:hover { background: none; }
+  .sugerencia__meta { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .sugerencias__vacio { padding: 11px 12px; font-size: 12px; color: var(--muted); }
+  .elegido {
+    display: flex; align-items: center; gap: 6px; margin-top: 5px;
+    font-size: 12px; color: var(--success);
+  }
   .active-cat { background: var(--rose-light) !important; border-color: var(--rose) !important; color: var(--rose-dark) !important; }
 </style>
 </head>
@@ -155,12 +179,17 @@
   <div class="card">
     <div class="card-title">🛍️ Registrar venta</div>
     <div class="form-grid form-grid-2">
-      <div class="field"><label>Cliente</label><input type="search" id="buscar-venta-cliente" placeholder="🔍 Buscar clienta" style="margin-bottom:5px"><select id="venta-cliente"><option value="">— Selecciona —</option></select></div>
+      <div class="field campo-busqueda">
+        <label>Cliente</label>
+        <input type="search" id="buscar-venta-cliente" autocomplete="off" placeholder="Escribe el nombre de la clienta">
+        <input type="hidden" id="venta-cliente">
+        <div class="sugerencias" id="sug-cliente" role="listbox" hidden></div>
+        <div class="elegido" id="cliente-elegido" hidden></div>
+      </div>
       <div class="field"><label>Fecha</label><input type="date" id="venta-fecha"></div>
     </div>
     <div class="divider"></div>
     <div class="section-label">Productos</div>
-    <div class="field" style="margin-bottom:8px"><input type="search" id="buscar-venta-producto" placeholder="🔍 Filtrar productos del catálogo"></div>
     <div class="venta-items" id="venta-items-container"></div>
     <button class="btn btn-ghost btn-sm" onclick="addVentaItem()" style="margin-top:7px">+ Agregar producto</button>
     <div class="divider"></div>
@@ -336,6 +365,18 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+/**
+ * Escapa el texto que se inserta como HTML.
+ *
+ * Los nombres de clientas y productos los escribe la usuaria y se pintan con
+ * plantillas; sin escapar, un nombre como <img src=x onerror=...> ejecutaria
+ * codigo. Se aplica en todo lo que dibuja el autocompletado.
+ */
+function escaparHtml(texto) {
+  const MAPA = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+  return String(texto ?? '').replace(/[&<>"']/g, c => MAPA[c]);
+}
 
 document.getElementById('fechaHoy').textContent = new Date().toLocaleDateString('es-HN', {weekday:'short',day:'numeric',month:'short'});
 
@@ -574,33 +615,111 @@ function eliminarProducto(id) {
 // ── NUEVA VENTA ──
 let ventaItems = [];
 
+// ── Autocompletado ───────────────────────────────────────────────────────
+// La usuaria escribe, ve las coincidencias y elige con clic. Nunca se
+// selecciona nada de forma automatica: la eleccion es siempre suya.
+
+/** Cuantas coincidencias se muestran a la vez, para no tapar la pantalla. */
+const MAX_SUGERENCIAS = 8;
+
+/** Panel actualmente desplegado, si hay alguno. */
+let panelAbierto = null;
+
+/** Cierra el panel de sugerencias que este abierto. */
+function cerrarSugerencias() {
+  if(panelAbierto) { panelAbierto.hidden = true; panelAbierto.innerHTML = ''; }
+  panelAbierto = null;
+}
+
 /**
- * Redibuja el desplegable de clientas aplicando el texto del buscador.
- * Esta separado de initVenta() a proposito: teclear en el buscador solo debe
- * refiltrar la lista, no reiniciar la fecha ni los productos de la venta.
+ * Dibuja las coincidencias dentro de un panel y lo despliega.
+ *
+ * @param {HTMLElement} panel
+ * @param {{valor:string,titulo:string,meta?:string,deshabilitada?:boolean}[]} opciones
+ * @param {string} textoSiVacio mensaje cuando no hay coincidencias.
  */
-function renderSelectClientes() {
-  const sel = document.getElementById('venta-cliente');
-  const elegida = sel.value;
-  const consulta = document.getElementById('buscar-venta-cliente')?.value || '';
-  const coincidencias = filtrarPor(data.clientes, consulta, ['nombre','dni','tel']);
+function mostrarSugerencias(panel, opciones, textoSiVacio) {
+  cerrarSugerencias();
 
-  // La clienta ya elegida permanece en la lista aunque no coincida con el
-  // filtro; de lo contrario se perderia la seleccion al seguir escribiendo.
-  const visibles = data.clientes.filter(c => c.id === elegida || coincidencias.includes(c));
+  panel.innerHTML = opciones.length
+    ? opciones.slice(0, MAX_SUGERENCIAS).map(o => `
+        <div class="sugerencia" role="option" data-valor="${escaparHtml(o.valor)}"
+             ${o.deshabilitada ? 'aria-disabled="true"' : ''}>
+          <span>${escaparHtml(o.titulo)}</span>
+          ${o.meta ? `<span class="sugerencia__meta">${escaparHtml(o.meta)}</span>` : ''}
+        </div>`).join('')
+    : `<div class="sugerencias__vacio">${escaparHtml(textoSiVacio)}</div>`;
 
-  sel.innerHTML = '<option value="">— Selecciona —</option>' +
-    visibles.map(c=>`<option value="${c.id}">${c.nombre}${c.dni?' · '+formatearDni(c.dni):''}</option>`).join('');
+  panel.hidden = false;
+  panelAbierto = panel;
+}
 
-  if(elegida) sel.value = elegida;
+// ── Autocompletado de clientas ───────────────────────────────────────────
 
-  // Si solo queda una candidata y aun no hay nada elegido, se selecciona sola:
-  // escribir el nombre y que ya quede lista es el caso de uso habitual.
-  if(!elegida && consulta.trim() && visibles.length === 1) sel.value = visibles[0].id;
+/** Refresca las sugerencias mientras se escribe el nombre de la clienta. */
+function buscarClienta() {
+  const consulta = document.getElementById('buscar-venta-cliente').value.trim();
+  const panel = document.getElementById('sug-cliente');
+
+  // Al seguir escribiendo se descarta la eleccion previa: el texto manda.
+  document.getElementById('venta-cliente').value = '';
+  document.getElementById('cliente-elegido').hidden = true;
+
+  if(consulta === '') { cerrarSugerencias(); return; }
+
+  const encontradas = filtrarPor(data.clientes, consulta, ['nombre','dni','tel']);
+
+  mostrarSugerencias(
+    panel,
+    encontradas.map(c => ({
+      valor: c.id,
+      titulo: c.nombre,
+      meta: c.dni ? formatearDni(c.dni) : (c.tel || ''),
+    })),
+    data.clientes.length ? 'Ninguna clienta coincide' : 'Aun no hay clientas registradas',
+  );
+}
+
+/** Fija la clienta que la usuaria eligio con el clic. */
+function elegirClienta(clienteId) {
+  const cliente = data.clientes.find(c => c.id === clienteId);
+  if(!cliente) return;
+
+  document.getElementById('venta-cliente').value = cliente.id;
+  document.getElementById('buscar-venta-cliente').value = cliente.nombre;
+
+  const aviso = document.getElementById('cliente-elegido');
+  aviso.textContent = '✓ ' + cliente.nombre + (cliente.dni ? ' · ' + formatearDni(cliente.dni) : '');
+  aviso.hidden = false;
+
+  cerrarSugerencias();
+}
+
+// ── Autocompletado de productos ──────────────────────────────────────────
+
+/** Refresca las sugerencias de producto de una fila de la venta. */
+function buscarProducto(fila) {
+  const consulta = document.getElementById('vbuscar-' + fila).value.trim();
+  const panel = document.getElementById('vsug-' + fila);
+
+  if(consulta === '') { cerrarSugerencias(); return; }
+
+  const encontrados = filtrarPor(data.productos, consulta, ['nombre','categoria']);
+
+  const opciones = encontrados.map(p => ({
+    valor: p.id,
+    titulo: (p.stock <= 0 ? '✕ ' : '') + p.nombre,
+    meta: p.stock <= 0 ? 'Sin stock' : fmt(p.precio) + ' · Stock: ' + p.stock,
+    deshabilitada: p.stock <= 0,
+  }));
+
+  // Siempre queda la salida de registrar algo que no esta en el catalogo.
+  opciones.push({ valor: 'custom', titulo: '✏️ Otro producto', meta: 'precio manual' });
+
+  mostrarSugerencias(panel, opciones, 'Ningun producto coincide');
 }
 
 function initVenta() {
-  renderSelectClientes();
   const fi = document.getElementById('venta-fecha');
   fi.value = today(); fi.min = today();
   if(!ventaItems.length) addVentaItem();
@@ -619,40 +738,53 @@ function esDelCatalogo(item) { return Boolean(item.productoId) && item.productoI
 function renderVentaItems() {
   const container = document.getElementById('venta-items-container');
   if(!ventaItems.length) { container.innerHTML=''; updateVentaTotals(); return; }
-  const consultaProd = document.getElementById('buscar-venta-producto')?.value || '';
-  const catalogo = filtrarPor(data.productos, consultaProd, ['nombre','categoria']);
-  // El producto ya elegido en una fila sigue disponible aunque el filtro lo
-  // excluya, para no perder la seleccion al teclear.
-  const idsElegidos = new Set(ventaItems.map(i=>i.productoId));
-  const visibles = data.productos.filter(p=>catalogo.includes(p) || idsElegidos.has(p.id));
-  const prodOpts = visibles.map(p=>`<option value="${p.id}" data-precio="${p.precio}" data-costo="${p.costo}" data-nombre="${p.nombre}" ${p.stock<=0?'disabled':''} style="${p.stock<=0?'color:#bbb':''}">${p.stock<=0?'✕ ':''} ${p.nombre} (${fmt(p.precio)})${p.stock<=0?' — Sin stock':' · Stock: '+p.stock}</option>`).join('');
+
   container.innerHTML = ventaItems.map((item,i)=>`
     <div class="venta-item-row" id="vrow-${i}">
-      <div class="field" style="margin:0"><label>Producto</label><select id="vsel-${i}" onchange="selectProd(${i},this)"><option value="">— Elige —</option>${prodOpts}<option value="custom">✏️ Otro</option></select></div>
+      <div class="field campo-busqueda" style="margin:0">
+        <label>Producto</label>
+        <input type="search" id="vbuscar-${i}" data-buscar-producto data-fila="${i}"
+               autocomplete="off" value="${escaparHtml(textoDeFila(item))}"
+               placeholder="Escribe para buscar…">
+        <input type="hidden" id="vsel-${i}" value="${escaparHtml(item.productoId)}">
+        <div class="sugerencias" id="vsug-${i}" data-panel-fila="${i}" role="listbox" hidden></div>
+      </div>
       <div class="field" style="margin:0"><label>Precio${esDelCatalogo(item)?'':' *'}</label><input id="vprecio-${i}" type="number" value="${item.precio||''}" min="0" placeholder="0" oninput="updateItem(${i},'precio',this.value)" ${esDelCatalogo(item)?'readonly title="Definido en Inventario" style="background:var(--gold-light);cursor:not-allowed"':''}></div>
       <div class="field" style="margin:0"><label>Cantidad</label><input id="vqty-${i}" type="number" value="${item.qty}" min="1" oninput="updateItem(${i},'qty',this.value)"></div>
       <button class="venta-item-remove" onclick="removeItem(${i})">✕</button>
     </div>
-    <div id="vcustom-${i}" style="display:${item.productoId==='custom'?'block':'none'};margin:0 0 5px"><div class="field" style="margin:0"><label>Nombre</label><input type="text" value="${item.nombre||''}" placeholder="Nombre del producto" oninput="updateItem(${i},'nombre',this.value)"></div></div>
+    <div id="vcustom-${i}" style="display:${item.productoId==='custom'?'block':'none'};margin:0 0 5px"><div class="field" style="margin:0"><label>Nombre del producto</label><input type="text" value="${escaparHtml(item.nombre)}" placeholder="Nombre del producto" oninput="updateItem(${i},'nombre',this.value)"></div></div>
   `).join('');
-  ventaItems.forEach((item,i)=>{ const s=document.getElementById('vsel-'+i); if(s&&item.productoId) s.value=item.productoId; });
+
   updateVentaTotals();
 }
 
-function selectProd(i,sel) {
-  const opt = sel.options[sel.selectedIndex];
+/** Texto que muestra el buscador de una fila segun lo ya elegido. */
+function textoDeFila(item) {
+  if(item.productoId === 'custom') return 'Otro producto';
+  return item.productoId ? item.nombre : '';
+}
 
-  if(sel.value === 'custom') {
+/**
+ * Aplica a la fila el producto elegido en el panel de sugerencias.
+ *
+ * @param {number} i indice de la fila.
+ * @param {string} productoId id del catalogo, o 'custom' para producto libre.
+ */
+function selectProd(i, productoId) {
+  if(productoId === 'custom') {
     // Producto libre: no esta en el catalogo, asi que el precio se escribe aqui.
     ventaItems[i] = {...ventaItems[i], productoId:'custom', nombre:'', precio:0, costo:0};
-  } else if(sel.value) {
+  } else if(productoId) {
     // Producto del catalogo: precio y costo los define Inventario.
-    ventaItems[i] = {...ventaItems[i], productoId:sel.value, nombre:opt.dataset.nombre,
-                     precio:parseFloat(opt.dataset.precio), costo:parseFloat(opt.dataset.costo)};
+    const p = data.productos.find(x=>x.id===productoId);
+    if(!p) return;
+    ventaItems[i] = {...ventaItems[i], productoId:p.id, nombre:p.nombre, precio:p.precio, costo:p.costo};
   } else {
     ventaItems[i] = {...ventaItems[i], productoId:'', nombre:'', precio:0, costo:0};
   }
 
+  cerrarSugerencias();
   // Se vuelve a dibujar en lugar de tocar el DOM a mano: es lo que aplica o
   // quita el bloqueo del campo de precio segun el producto elegido.
   renderVentaItems();
@@ -699,7 +831,11 @@ function guardarVenta() {
 }
 
 function limpiarVenta() {
-  ventaItems=[]; document.getElementById('venta-cliente').value='';
+  ventaItems=[];
+  document.getElementById('venta-cliente').value='';
+  document.getElementById('buscar-venta-cliente').value='';
+  document.getElementById('cliente-elegido').hidden = true;
+  cerrarSugerencias();
   const fi=document.getElementById('venta-fecha'); fi.value=today(); fi.min=today();
   document.getElementById('venta-tipo-pago').value='contado';
   document.getElementById('campo-abono-inicial').style.display='none';
@@ -887,25 +1023,71 @@ Object.assign(window, {
   guardarCliente, guardarEdicionProducto, guardarEdicionRec, guardarProducto,
   guardarRecordatorio, guardarVenta, limpiarVenta, notifRegistrarPago,
   openVentaDetalle, registrarAbono, removeItem, renderInicio,
-  selectProd, showPage, syncSlider, updateItem,
-  updatePagoFields,
+  showPage, syncSlider, updateItem, updatePagoFields,
 });
 
-// ── Buscadores ───────────────────────────────────────────────────────────
-// Se conectan con addEventListener y no con atributos oninput. Los atributos
-// resuelven contra window y obligan a mantener a mano el bloque de arriba;
-// olvidarlo deja el control mudo sin ningun error visible. Esta es ademas la
-// forma que exige la CSP estricta de la Etapa 7.
-const BUSCADORES = [
-  ['buscar-cliente',         () => renderClientes()],
-  ['buscar-venta-cliente',   () => renderSelectClientes()],
-  ['buscar-venta-producto',  () => renderVentaItems()],
-  ['buscar-inventario',      () => renderInventario(catActual)],
-];
+// ── Conexion de eventos ──────────────────────────────────────────────────
+// Todo con addEventListener y no con atributos inline: los atributos resuelven
+// contra window y obligan a mantener a mano el bloque de exposicion, cuyo
+// olvido deja controles mudos sin error visible. Es ademas lo que exige la CSP
+// estricta de la Etapa 7.
 
-BUSCADORES.forEach(([id, alEscribir]) => {
+// Buscadores de lista simple.
+[['buscar-cliente', () => renderClientes()],
+ ['buscar-inventario', () => renderInventario(catActual)]
+].forEach(([id, alEscribir]) => {
   const campo = document.getElementById(id);
   if(campo) campo.addEventListener('input', alEscribir);
+});
+
+// Autocompletado de clienta.
+const campoClienta = document.getElementById('buscar-venta-cliente');
+campoClienta.addEventListener('input', buscarClienta);
+// Al volver al campo solo se despliegan sugerencias si aun no hay clienta
+// elegida: si la hubiera, buscarClienta() borraria esa eleccion.
+campoClienta.addEventListener('focus', () => {
+  if(!document.getElementById('venta-cliente').value) buscarClienta();
+});
+
+// Se usa mousedown y no click: el clic normal llega despues del blur del
+// campo, y para entonces el panel ya podria haberse cerrado.
+document.getElementById('sug-cliente').addEventListener('mousedown', (evento) => {
+  const opcion = evento.target.closest('.sugerencia');
+  if(!opcion || opcion.getAttribute('aria-disabled') === 'true') return;
+  evento.preventDefault();
+  elegirClienta(opcion.dataset.valor);
+});
+
+// Autocompletado de productos. Se delega en el contenedor porque las filas se
+// vuelven a dibujar constantemente y perderian sus propios listeners.
+const contenedorItems = document.getElementById('venta-items-container');
+
+contenedorItems.addEventListener('input', (evento) => {
+  const campo = evento.target.closest('[data-buscar-producto]');
+  if(campo) buscarProducto(Number(campo.dataset.fila));
+});
+
+contenedorItems.addEventListener('focusin', (evento) => {
+  const campo = evento.target.closest('[data-buscar-producto]');
+  if(campo) buscarProducto(Number(campo.dataset.fila));
+});
+
+contenedorItems.addEventListener('mousedown', (evento) => {
+  const opcion = evento.target.closest('.sugerencia');
+  if(!opcion || opcion.getAttribute('aria-disabled') === 'true') return;
+  evento.preventDefault();
+  const fila = Number(opcion.closest('[data-panel-fila]').dataset.panelFila);
+  selectProd(fila, opcion.dataset.valor);
+});
+
+// Un clic fuera cierra el panel abierto.
+document.addEventListener('mousedown', (evento) => {
+  if(!evento.target.closest('.campo-busqueda')) cerrarSugerencias();
+});
+
+// Escape tambien lo cierra, para quien navegue con teclado.
+document.addEventListener('keydown', (evento) => {
+  if(evento.key === 'Escape') cerrarSugerencias();
 });
 
 // ── INIT ──
