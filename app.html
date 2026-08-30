@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#9e3f52">
+<link rel="icon" href="/icono-192.png">
+<link rel="apple-touch-icon" href="/icono-192.png">
 <title>April Collections</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -136,7 +140,11 @@
     <div class="brand-icon">💎</div>
     <div class="brand-name">April <span>Collections</span></div>
   </div>
-  <div style="font-size:11px;color:rgba(255,255,255,0.4);" id="fechaHoy"></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button id="btn-instalar" class="btn btn-sm" type="button" hidden
+            style="background:var(--gold);color:var(--charcoal);border:none">⬇️ Instalar</button>
+    <div style="font-size:11px;color:rgba(255,255,255,0.4);" id="fechaHoy"></div>
+  </div>
 </header>
 
 <nav class="nav">
@@ -356,6 +364,12 @@
   </div>
 </div>
 
+<div id="aviso-sin-conexion" hidden
+     style="position:fixed;bottom:0;left:0;right:0;background:var(--warning-text);color:#fff;
+            padding:9px 14px;font-size:13px;text-align:center;z-index:400">
+  📵 Sin conexión. Puedes seguir trabajando: los datos se guardan en este dispositivo.
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -368,6 +382,7 @@ import { validarCategoria, agregarCategoria, eliminarCategoria, puedeEliminarse,
          categoriasDesdeProductos, sonLaMisma } from './src/domain/categories.js';
 import { pendientesDeAvisar, describirMomento, MINUTOS_ANTICIPACION,
          MINUTOS_ENTRE_INSISTENCIAS } from './src/domain/notifications.js';
+import { registrarServiceWorker, conectarBotonInstalar } from './src/ui/registrar-sw.js';
 
 let data = JSON.parse(localStorage.getItem('ac_data') || '{"clientes":[],"productos":[],"ventas":[],"recordatorios":[]}');
 if(!data.recordatorios) data.recordatorios = [];
@@ -1299,6 +1314,17 @@ document.getElementById('filtros-categoria').addEventListener('click', (evento) 
 document.getElementById('estado-notificaciones').addEventListener('click', (evento) => {
   if(evento.target.closest('#btn-activar-notif')) activarNotificaciones();
 });
+
+// PWA: registro del service worker, boton de instalar y aviso de red.
+registrarServiceWorker();
+conectarBotonInstalar(document.getElementById('btn-instalar'));
+
+function actualizarAvisoConexion() {
+  document.getElementById('aviso-sin-conexion').hidden = navigator.onLine;
+}
+window.addEventListener('online', actualizarAvisoConexion);
+window.addEventListener('offline', actualizarAvisoConexion);
+actualizarAvisoConexion();
 
 // Un clic fuera cierra el panel abierto.
 document.addEventListener('mousedown', (evento) => {
