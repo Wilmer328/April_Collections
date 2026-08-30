@@ -119,3 +119,6 @@ Se publica en Vercel desde la rama `main`.
 ## Licencia
 
 ISC
+
+## Tu código de verificación
+ LEARN-CAP-26A0B552
