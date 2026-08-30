@@ -1,0 +1,99 @@
+# April Collections
+
+Sistema de gestión para un negocio de venta por catálogo: registra ventas,
+lleva el control de quién debe cuánto, administra el inventario, calcula
+precios por margen y avisa de los cobros prometidos.
+
+Proyecto Capstone de Ingeniería de Software 2.
+
+---
+
+## ⚠️ Pendiente de completar
+
+> **Cliente real:** este README debe declarar el nombre del negocio y de la
+> persona para quien se construye la aplicación (entregable 1). El dato no se
+> ha registrado todavía y **no debe inventarse**. Completar antes de la entrega.
+
+---
+
+## Estado del proyecto
+
+| Área | Estado |
+|---|---|
+| Aplicación funcional | ✅ 6 módulos operativos |
+| Landing y login | ✅ publicados |
+| Capa de dominio con pruebas | ✅ 79 pruebas, 100 % de líneas |
+| Build y entorno de pruebas | ✅ Vite + Vitest |
+| Autenticación con Google | ⏳ implementada, falta configurar Supabase |
+| Persistencia en Supabase | ❌ hoy usa `localStorage` |
+| PWA y modo offline | ❌ |
+| CI y SonarCloud | ❌ |
+
+## Cómo ejecutarlo
+
+```bash
+npm install
+npm run dev          # servidor de desarrollo
+npm run build        # genera dist/
+npm test             # 79 pruebas
+npm run test:coverage
+```
+
+Requiere Node 20 o superior.
+
+## Rutas
+
+| Ruta | Página |
+|---|---|
+| `/` | Landing pública |
+| `/login` | Inicio de sesión con Google |
+| `/app` | Aplicación |
+
+## Arquitectura
+
+```
+src/
+├── domain/     Reglas de negocio. JavaScript puro: sin DOM, sin red.
+│               Es la única capa con pruebas exhaustivas.
+├── auth/       Sesión con Supabase Auth.
+├── data/       Cliente de Supabase.
+└── ui/         Presentación.
+```
+
+La regla que sostiene el diseño: **`domain/` no importa nada de las otras
+capas ni del navegador**. Por eso se prueba sin simular un DOM y por eso la
+cobertura de esa capa es real y no está inflada con pruebas artificiales.
+
+Las decisiones importantes se registran en [docs/adr/](docs/adr/).
+
+## Configuración
+
+Ningún secreto se versiona.
+
+1. Copia `config.example.js` como `config.js` y rellena la URL y la anon key
+   de tu proyecto de Supabase (*Project Settings → API*).
+2. `.env.example` documenta las variables equivalentes para Vercel.
+
+La anon key es pública por diseño: viaja al navegador en cualquier aplicación
+Supabase y la protección real la dan las políticas RLS. La `service_role` key
+**nunca** debe aparecer en el cliente.
+
+## Cobertura
+
+La capa de dominio está al 100 % de líneas y funciones. La cobertura global es
+menor porque incluye las capas de UI y autenticación, que todavía no tienen
+pruebas; se reporta así a propósito, en vez de excluirlas para inflar el número.
+
+## Despliegue
+
+Se publica en Vercel desde la rama `main`.
+
+| Ajuste | Valor |
+|---|---|
+| Framework Preset | Vite |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+
+## Licencia
+
+ISC
