@@ -1,0 +1,55 @@
+name: SonarCloud
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  analizar:
+    name: Análisis de calidad
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el código
+        # SonarCloud necesita el historial completo para atribuir cada línea a
+        # su commit; con el clon superficial por defecto no puede calcular el
+        # código nuevo de un pull request.
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Generar la cobertura
+        # Debe ejecutarse antes del análisis: Sonar lee coverage/lcov.info.
+        run: npm run test:coverage
+
+      - name: Comprobar si hay credenciales
+        id: credenciales
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            echo "disponibles=si" >> "$GITHUB_OUTPUT"
+          else
+            echo "disponibles=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::Falta el secreto SONAR_TOKEN. El análisis se omite hasta que se configure SonarCloud."
+          fi
+
+      - name: Analizar con SonarCloud
+        # Se omite mientras no exista el token, en lugar de fallar. Así el
+        # pipeline no se pone en rojo por una integración que todavía no se ha
+        # conectado, y empieza a analizar solo en cuanto se añada el secreto.
+        if: steps.credenciales.outputs.disponibles == 'si'
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
