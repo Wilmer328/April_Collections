@@ -36,18 +36,24 @@ reseteo de la cuenta demo).
 
 ## Desarrollo local
 
-Mientras el proyecto no inyecte variables en tiempo de build, la configuración
-se carga en tiempo de ejecución:
-
-1. Copia `config.example.js` como `config.js` — está en `.gitignore`.
-2. Rellena `SUPABASE_URL` y `SUPABASE_ANON_KEY`.
-3. Enlázalo en `login.html` y `app.html`, antes de los módulos:
-   `<script src="./config.js"></script>`
+1. Copia `env.ejemplo` como `.env` — está en `.gitignore`.
+2. Rellena `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
+3. `npm run dev`. Vite las sustituye al compilar.
 
 ## Producción
 
-En Vercel: *Settings → Environment Variables*. Se definen con los mismos
-nombres de la tabla de arriba, para los entornos Production y Preview.
+En Vercel: *Settings → Environment Variables*, con los mismos nombres de la
+tabla de arriba, marcadas para **Production** y **Preview**.
+
+Después de añadirlas hay que **volver a desplegar**: Vite sustituye estas
+variables en tiempo de compilación, así que un despliegue anterior sigue
+llevando los valores vacíos.
+
+## Sobrescritura en tiempo de ejecución
+
+Para apuntar a otro proyecto sin recompilar, se puede definir
+`window.__APP_CONFIG__` antes de los módulos. Tiene prioridad sobre las
+variables de compilación y sirve para pruebas puntuales.
 
 ## Ajustes de build en Vercel
 
