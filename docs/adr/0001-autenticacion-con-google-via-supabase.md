@@ -3,6 +3,7 @@
 - **Estado:** Aceptada
 - **Fecha:** 2026-08-28
 - **Decide:** Wilmer Sánchez
+- **Modificada por:** [ADR-0003](0003-acceso-demo-con-credenciales-propias.md), que añade correo y contraseña para una única cuenta de demostración.
 
 ## Contexto
 
