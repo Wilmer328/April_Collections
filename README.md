@@ -65,11 +65,29 @@ Requiere Node 20 o superior.
 
 ## Rutas
 
-| Ruta | Página |
+| Ruta | Página | Acceso |
+|---|---|---|
+| `/` | Landing pública | Abierta |
+| `/login` | Inicio de sesión | Abierta |
+| `/app` | Aplicación | Requiere sesión |
+| `/panel` | Portal privado | Requiere sesión, comprobada en el servidor |
+| `/api/health` | Estado del servicio (JSON) | Abierta |
+
+## Demostración
+
+Hay una cuenta con datos ficticios para recorrer el producto sin tocar los
+datos reales del negocio.
+
+| | |
 |---|---|
-| `/` | Landing pública |
-| `/login` | Inicio de sesión con Google |
-| `/app` | Aplicación |
+| **Usuario** | `demo@jsanchez.site` |
+| **Contraseña** | Se entrega por el formulario de la plataforma del curso |
+
+📋 **[Recorrido guiado en 4 pasos](docs/recorrido-demo.md)** — qué mirar en cada
+pantalla y qué decisión de ingeniería demuestra.
+
+> La contraseña no se publica aquí: este repositorio es público y escribirla
+> daría acceso a la demostración a cualquiera.
 
 ## Arquitectura
 
