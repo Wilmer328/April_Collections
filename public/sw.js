@@ -23,18 +23,31 @@
  *     que servirlos desde caché es instantáneo y siempre correcto.
  *
  * LO QUE ESTE SERVICE WORKER NO HACE
- * No sincroniza datos ni recibe notificaciones push. Hoy los datos viven en
- * localStorage del dispositivo, así que no hay nada que sincronizar. Las
- * notificaciones push necesitan además un servidor que las dispare. Ambas
- * cosas llegan cuando exista Supabase. Ver docs/adr/0002.
+ * No cachea datos del negocio ni sincroniza escrituras. Los datos viven en
+ * Supabase y las respuestas de su API quedan fuera de la caché a propósito:
+ * servir clientas o saldos guardados de otra sesión sería mostrar información
+ * de otra cuenta, y las políticas RLS que separan a cada usuaria se evalúan en
+ * el servidor, no aquí.
+ *
+ * Tampoco recibe notificaciones push, que necesitan un servidor que las
+ * dispare. Ver docs/adr/0002.
+ *
+ * En consecuencia, sin conexión la aplicación abre y muestra lo ya cargado en
+ * memoria, pero no puede traer datos nuevos ni guardar cambios.
  */
 
 /**
- * Versión de la caché. Al cambiarla, el service worker nuevo descarta todo lo
- * guardado por el anterior. Se sube al cambiar el envoltorio de la aplicación.
+ * Nombre de la caché, con su versión dentro.
+ *
+ * Al cambiarlo, el service worker nuevo descarta todo lo guardado por el
+ * anterior: la fase de activación borra cualquier caché cuyo nombre no sea
+ * este. Se sube la versión al cambiar el envoltorio de la aplicación.
+ *
+ * Se escribe literal y no se compone con una plantilla a propósito: así el
+ * nombre real se puede buscar en el archivo, y quien audite el código sabe qué
+ * caché abrir en las herramientas del navegador sin tener que ejecutarlo.
  */
-const VERSION = 'v1';
-const CACHE = `april-collections-${VERSION}`;
+const CACHE = 'april-collections-v1';
 
 /**
  * Lo mínimo para que la aplicación arranque sin conexión.
