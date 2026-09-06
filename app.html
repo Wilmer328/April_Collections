@@ -135,6 +135,21 @@
 </head>
 <body>
 
+<!-- Se muestra mientras se comprueba la sesion y llegan los datos. La
+     aplicacion arranca oculta: si la carga falla, no se ensena una pantalla
+     vacia que parezca un negocio sin ventas. -->
+<div id="pantalla-carga" style="position:fixed;inset:0;z-index:900;background:var(--cream);
+     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center">
+  <div style="font-size:40px" aria-hidden="true">💎</div>
+  <div style="font-family:'Playfair Display',serif;font-size:19px">April Collections</div>
+  <div id="carga-mensaje" style="font-size:13px;color:var(--muted)">Comprobando tu sesión…</div>
+  <div id="carga-acciones" style="display:none;flex-direction:column;gap:8px;margin-top:6px">
+    <button class="btn btn-primary" id="btn-reintentar" type="button">Reintentar</button>
+    <a class="btn btn-ghost" href="./login.html">Ir al inicio de sesión</a>
+  </div>
+</div>
+
+
 <header class="app-header">
   <div class="brand">
     <div class="brand-icon">💎</div>
@@ -378,19 +393,71 @@
 import { hoyLocal, perteneceAlMes, esAnteriorA } from './src/domain/dates.js';
 import { filtrarPor } from './src/domain/search.js';
 import { validarCliente, normalizarDni, formatearDni } from './src/domain/customers.js';
+import { ajustarStock as ajustarStockDominio, descontarStock } from './src/domain/inventory.js';
+import { abonoInicial } from './src/domain/sales.js';
+import { aCentavos } from './src/domain/money.js';
 import { validarCategoria, agregarCategoria, eliminarCategoria, puedeEliminarse,
-         categoriasDesdeProductos, sonLaMisma } from './src/domain/categories.js';
+         sonLaMisma } from './src/domain/categories.js';
 import { pendientesDeAvisar, describirMomento, MINUTOS_ANTICIPACION,
          MINUTOS_ENTRE_INSISTENCIAS } from './src/domain/notifications.js';
 import { registrarServiceWorker, conectarBotonInstalar } from './src/ui/registrar-sw.js';
+import { obtenerUsuarioActual } from './src/auth/session.js';
+import * as repoClientes from './src/data/repositories/clientes.js';
+import * as repoProductos from './src/data/repositories/productos.js';
+import * as repoVentas from './src/data/repositories/ventas.js';
+import * as repoRecordatorios from './src/data/repositories/recordatorios.js';
+import * as repoCategorias from './src/data/repositories/categorias.js';
 
-let data = JSON.parse(localStorage.getItem('ac_data') || '{"clientes":[],"productos":[],"ventas":[],"recordatorios":[]}');
-if(!data.recordatorios) data.recordatorios = [];
-// Catalogos guardados con versiones anteriores no traen la lista de
-// categorias: se reconstruye con las iniciales mas las que los productos ya
-// estuvieran usando, para que ninguno quede fuera de los filtros.
-if(!data.categorias) { data.categorias = categoriasDesdeProductos(data.productos); save(); }
-function save() { localStorage.setItem('ac_data', JSON.stringify(data)); }
+/**
+ * Copia en memoria de los datos del negocio.
+ *
+ * La fuente de verdad es Supabase; esto es solo lo que la pantalla esta
+ * mostrando ahora mismo. Se refresca al cargar y despues de cada escritura,
+ * para que lo que se ve sea siempre lo que quedo guardado.
+ */
+let data = { clientes: [], productos: [], ventas: [], recordatorios: [], categorias: [] };
+
+/**
+ * Trae los cinco conjuntos de Supabase.
+ *
+ * En paralelo y no en serie: son consultas independientes y hacerlas una tras
+ * otra multiplicaria por cinco la espera en una conexion movil.
+ */
+async function cargarTodo() {
+  const [clientes, productos, ventas, recordatorios, categorias] = await Promise.all([
+    repoClientes.listar(),
+    repoProductos.listar(),
+    repoVentas.listar(),
+    repoRecordatorios.listar(),
+    repoCategorias.asegurarIniciales(),
+  ]);
+
+  data = { clientes, productos, ventas, recordatorios, categorias };
+}
+/**
+ * Ejecuta una escritura contra Supabase informando del resultado.
+ *
+ * Centraliza el manejo de errores: antes ninguna operacion podia fallar
+ * porque escribir en localStorage es sincrono y local. Ahora cualquiera
+ * puede caerse por red, y la usuaria tiene que enterarse en vez de creer
+ * que guardo.
+ *
+ * @param {() => Promise<void>} operacion
+ * @param {string} exito mensaje si sale bien.
+ * @returns {Promise<boolean>} true si se guardo.
+ */
+async function guardarEnLaNube(operacion, exito) {
+  try {
+    await operacion();
+    if (exito) showToast(exito);
+    return true;
+  } catch (error) {
+    console.error(error);
+    showToast('⚠️ ' + error.message);
+    return false;
+  }
+}
+
 function fmt(n) { return 'L ' + parseFloat(n||0).toFixed(2); }
 function today() { return hoyLocal(); }
 function showToast(msg) {
@@ -499,24 +566,47 @@ function openVentaDetalle(id) {
   document.getElementById('modal-cliente').classList.add('open');
 }
 
-function registrarAbono(ventaId) {
+async function registrarAbono(ventaId) {
   const monto = parseFloat(document.getElementById('nuevo-abono').value||0);
   if(!monto || monto <= 0) { showToast('⚠️ Ingresa un monto válido'); return; }
   const v = data.ventas.find(x=>x.id===ventaId); if(!v) return;
-  if(!v.abonos) v.abonos = [];
-  v.abonos.push({ monto, fecha: today() });
-  const cobradoNuevo = (v.abonos||[]).reduce((s,a)=>s+a.monto,0);
-  if(cobradoNuevo >= v.total - 0.01) data.recordatorios.forEach(r => { if(r.ventaId===ventaId && r.estado==='pendiente') r.estado='completado'; });
-  if(window._recIdParaPago) { const rp = data.recordatorios.find(x=>x.id===window._recIdParaPago); if(rp) rp.estado='completado'; window._recIdParaPago=null; }
-  save();
-  showToast('✅ Abono registrado: ' + fmt(monto));
+
+  const guardado = await guardarEnLaNube(async () => {
+    await repoVentas.registrarAbono(ventaId, monto, today());
+
+    if(!v.abonos) v.abonos = [];
+    v.abonos.push({ monto, fecha: today() });
+
+    // Si la deuda quedo saldada, sus recordatorios se cierran solos: nadie
+    // debe seguir recibiendo avisos para cobrar algo ya pagado.
+    const cobrado = v.abonos.reduce((suma,a)=>suma+a.monto,0);
+    if(cobrado >= v.total - 0.01) {
+      await repoRecordatorios.completarPorVenta(ventaId);
+      data.recordatorios.forEach(r => {
+        if(r.ventaId===ventaId && r.estado==='pendiente') r.estado='completado';
+      });
+    }
+
+    // El recordatorio desde el que se abrio el cobro se da por atendido.
+    if(window._recIdParaPago) {
+      const rp = data.recordatorios.find(x=>x.id===window._recIdParaPago);
+      if(rp) {
+        await repoRecordatorios.actualizar(rp.id, { estado: 'completado' });
+        rp.estado = 'completado';
+      }
+      window._recIdParaPago = null;
+    }
+  }, '✅ Abono registrado: ' + fmt(monto));
+
+  if(!guardado) return;
+
   closeModal('modal-cliente');
   renderInicio();
   updateNotifBadge();
 }
 
 // ── CLIENTES ──
-function guardarCliente() {
+async function guardarCliente() {
   const nombre = document.getElementById('cliente-nombre').value.trim();
   const dni = normalizarDni(document.getElementById('cliente-dni').value);
   const tel = document.getElementById('cliente-tel').value.trim();
@@ -525,10 +615,14 @@ function guardarCliente() {
   const resultado = validarCliente({ nombre, dni }, data.clientes);
   if(!resultado.valido) { showToast('⚠️ ' + resultado.error); return; }
 
-  data.clientes.push({ id: Date.now()+'', nombre, dni, tel });
-  save();
+  const guardado = await guardarEnLaNube(async () => {
+    const creada = await repoClientes.crear({ nombre, dni, tel });
+    data.clientes.unshift(creada);
+  }, resultado.aviso ? 'ℹ️ ' + resultado.aviso : '✅ Se agrego a ' + nombre);
+
+  if(!guardado) return;
+
   ['cliente-nombre','cliente-dni','cliente-tel'].forEach(id => document.getElementById(id).value = '');
-  showToast(resultado.aviso ? 'ℹ️ ' + resultado.aviso : '✅ Se agrego a ' + nombre);
   renderClientes();
 }
 
@@ -557,14 +651,25 @@ function calcMargenInv() {
   if(c&&p>c){ document.getElementById('inv-margen').value=((p-c)/c*100).toFixed(0); document.getElementById('inv-ganancia-unit').textContent=fmt(p-c); }
 }
 
-function guardarProducto() {
+async function guardarProducto() {
   const nombre = document.getElementById('inv-nombre').value.trim();
   if(!nombre) { showToast('⚠️ Escribe el nombre'); return; }
-  data.productos.push({ id: Date.now()+'', nombre, costo: parseFloat(document.getElementById('inv-costo').value||0), precio: parseFloat(document.getElementById('inv-precio').value||0), stock: parseInt(document.getElementById('inv-stock').value||0), categoria: document.getElementById('inv-categoria').value });
-  save();
+
+  const guardado = await guardarEnLaNube(async () => {
+    const creado = await repoProductos.crear({
+      nombre,
+      categoria: document.getElementById('inv-categoria').value,
+      costo: parseFloat(document.getElementById('inv-costo').value||0),
+      precio: parseFloat(document.getElementById('inv-precio').value||0),
+      stock: parseInt(document.getElementById('inv-stock').value||0),
+    });
+    data.productos.push(creado);
+  }, '✅ Producto agregado: ' + nombre);
+
+  if(!guardado) return;
+
   ['inv-nombre','inv-costo','inv-margen','inv-precio','inv-stock'].forEach(id => document.getElementById(id).value='');
   document.getElementById('inv-ganancia-unit').textContent = 'L 0.00';
-  showToast('✅ Producto agregado: ' + nombre);
   renderInventario('Todas');
 }
 
@@ -613,30 +718,38 @@ function renderCategorias() {
 }
 
 /** Agrega la categoria que escribio la usuaria. */
-function guardarCategoria() {
+async function guardarCategoria() {
   const campo = document.getElementById('nueva-categoria');
   const resultado = validarCategoria(campo.value, data.categorias);
 
   if(!resultado.valido) { showToast('⚠️ ' + resultado.error); return; }
 
-  data.categorias = agregarCategoria(data.categorias, resultado.nombre);
-  save();
+  const guardado = await guardarEnLaNube(async () => {
+    const nombre = await repoCategorias.crear(resultado.nombre);
+    data.categorias = agregarCategoria(data.categorias, nombre);
+  }, '✅ Categoría agregada: ' + resultado.nombre);
+
+  if(!guardado) return;
+
   campo.value = '';
-  showToast('✅ Categoría agregada: ' + resultado.nombre);
   renderCategorias();
 }
 
 /** Elimina una categoria, solo si ningun producto la esta usando. */
-function borrarCategoria(nombre) {
+async function borrarCategoria(nombre) {
   const permiso = puedeEliminarse(nombre, data.productos);
 
   if(!permiso.puede) { showToast('⚠️ ' + permiso.motivo); return; }
   if(!confirm('¿Eliminar la categoría "' + nombre + '"?')) return;
 
-  data.categorias = eliminarCategoria(data.categorias, nombre);
+  const guardado = await guardarEnLaNube(async () => {
+    await repoCategorias.eliminar(nombre);
+    data.categorias = eliminarCategoria(data.categorias, nombre);
+  }, '🗑️ Categoría eliminada');
+
+  if(!guardado) return;
+
   if(sonLaMisma(catActual, nombre)) catActual = 'Todas';
-  save();
-  showToast('🗑️ Categoría eliminada');
   renderCategorias();
   renderInventario(catActual);
 }
@@ -685,29 +798,55 @@ function abrirEditarProducto(id) {
 function calcEpPrecio() { const c=parseFloat(document.getElementById('ep-costo').value||0),m=parseFloat(document.getElementById('ep-margen').value||0); if(c&&m) document.getElementById('ep-precio').value=(c*(1+m/100)).toFixed(2); }
 function calcEpMargen() { const c=parseFloat(document.getElementById('ep-costo').value||0),p=parseFloat(document.getElementById('ep-precio').value||0); if(c&&p>c) document.getElementById('ep-margen').value=((p-c)/c*100).toFixed(0); }
 
-function ajustarStock(id, dir) {
+async function ajustarStock(id, dir) {
   const p = data.productos.find(x=>x.id===id); if(!p) return;
   const adj = parseInt(document.getElementById('ep-adj').value||1);
-  const nuevo = Math.max(0, p.stock + dir*adj);
-  p.stock = nuevo; save();
+  // La regla de que el stock nunca baja de cero vive en el dominio.
+  const nuevo = ajustarStockDominio(p.stock, dir*adj);
+
+  const guardado = await guardarEnLaNube(async () => {
+    await repoProductos.fijarStock(id, nuevo);
+    p.stock = nuevo;
+  }, null);
+
+  if(!guardado) return;
+
   document.getElementById('ep-stock-display').textContent = nuevo;
   document.getElementById('ep-stock-display').style.color = nuevo===0?'var(--danger)':nuevo<=5?'var(--warning)':'var(--success)';
   showToast((dir>0?'➕ Agregaron ':'➖ Quitaron ')+adj+' · Stock: '+nuevo);
   renderInventario(catActual);
 }
 
-function guardarEdicionProducto(id) {
+async function guardarEdicionProducto(id) {
   const p = data.productos.find(x=>x.id===id); if(!p) return;
-  p.nombre = document.getElementById('ep-nombre').value.trim()||p.nombre;
-  p.categoria = document.getElementById('ep-cat').value;
-  p.costo = parseFloat(document.getElementById('ep-costo').value||p.costo);
-  p.precio = parseFloat(document.getElementById('ep-precio').value||p.precio);
-  save(); showToast('✅ Producto actualizado'); closeModal('modal-producto'); renderInventario(catActual);
+
+  const cambios = {
+    nombre: document.getElementById('ep-nombre').value.trim()||p.nombre,
+    categoria: document.getElementById('ep-cat').value,
+    costo: parseFloat(document.getElementById('ep-costo').value||p.costo),
+    precio: parseFloat(document.getElementById('ep-precio').value||p.precio),
+  };
+
+  const guardado = await guardarEnLaNube(async () => {
+    const actualizado = await repoProductos.actualizar(id, cambios);
+    Object.assign(p, actualizado);
+  }, '✅ Producto actualizado');
+
+  if(!guardado) return;
+
+  closeModal('modal-producto');
+  renderInventario(catActual);
 }
 
-function eliminarProducto(id) {
+async function eliminarProducto(id) {
   if(!confirm('¿Eliminar este producto?')) return;
-  data.productos = data.productos.filter(p=>p.id!==id); save(); renderInventario(catActual); showToast('🗑️ Eliminado');
+
+  const guardado = await guardarEnLaNube(async () => {
+    await repoProductos.eliminar(id);
+    data.productos = data.productos.filter(p=>p.id!==id);
+  }, '🗑️ Eliminado');
+
+  if(guardado) renderInventario(catActual);
 }
 
 // ── NUEVA VENTA ──
@@ -900,7 +1039,7 @@ function updateVentaTotals() {
 
 function updatePagoFields() { document.getElementById('campo-abono-inicial').style.display=document.getElementById('venta-tipo-pago').value==='abono'?'block':'none'; updateVentaTotals(); }
 
-function guardarVenta() {
+async function guardarVenta() {
   const fechaVenta = document.getElementById('venta-fecha').value;
   if(fechaVenta < today()) { showToast('❌ No puedes registrar una venta con fecha pasada'); return; }
   const clienteId = document.getElementById('venta-cliente').value;
@@ -916,16 +1055,44 @@ function guardarVenta() {
   }
   const total = itemsValidos.reduce((s,i)=>s+i.precio*i.qty,0);
   const tipo = document.getElementById('venta-tipo-pago').value;
-  let abonos = [];
-  if(tipo==='contado') abonos=[{monto:total,fecha:today()}];
-  else if(tipo==='abono') { const m=parseFloat(document.getElementById('venta-abono').value||0); if(m>0) abonos=[{monto:m,fecha:today()}]; }
-  data.ventas.push({ id:Date.now()+'', clienteId, fecha:fechaVenta||today(), items:itemsValidos.map(i=>({...i})), total, abonos });
-  itemsValidos.forEach(i=>{ if(i.productoId&&i.productoId!=='custom'){ const p=data.productos.find(x=>x.id===i.productoId); if(p&&p.stock>=i.qty) p.stock-=i.qty; } });
-  save();
+
+  // Cuanto se entrega al momento de vender. La regla vive en el dominio.
+  const entregado = abonoInicial({
+    tipoPago: tipo,
+    totalCentavos: aCentavos(total),
+    entregadoCentavos: aCentavos(document.getElementById('venta-abono').value || 0),
+  }) / 100;
+
+  const guardado = await guardarEnLaNube(async () => {
+    const creada = await repoVentas.crear({
+      clienteId,
+      fecha: fechaVenta || today(),
+      tipoPago: tipo,
+      items: itemsValidos,
+      abonoInicial: entregado,
+    });
+    data.ventas.unshift(creada);
+
+    // Descontar existencias de lo vendido del catalogo. Se hace despues de
+    // guardar la venta: si fallara aqui, quedaria registrada la venta con el
+    // stock sin ajustar, que es preferible a lo contrario.
+    for(const item of itemsValidos) {
+      if(!item.productoId || item.productoId === 'custom') continue;
+      const p = data.productos.find(x=>x.id===item.productoId);
+      if(!p) continue;
+
+      const restante = descontarStock(p.stock, item.qty);
+      await repoProductos.fijarStock(p.id, restante);
+      p.stock = restante;
+    }
+  }, '✅ Venta guardada: '+fmt(total));
+
+  if(!guardado) return;
+
   ventaItems = [];
   limpiarVenta();
-  showToast('✅ Venta guardada: '+fmt(total));
   renderInicio();
+  renderInventario(catActual);
 }
 
 function limpiarVenta() {
@@ -979,16 +1146,21 @@ function cargarVentasPendientesRec(clienteId) {
   sel.innerHTML='<option value="">— Elige la venta —</option>'+pends.map(v=>{ const c=(v.abonos||[]).reduce((s,a)=>s+a.monto,0); return `<option value="${v.id}">${v.fecha} · Debe ${fmt(v.total-c)}</option>`; }).join('');
 }
 
-function guardarRecordatorio() {
+async function guardarRecordatorio() {
   const clienteId=document.getElementById('rec-cliente').value, ventaId=document.getElementById('rec-venta').value;
   const fecha=document.getElementById('rec-fecha').value, hora=document.getElementById('rec-hora').value||'09:00';
   const nota=document.getElementById('rec-nota').value.trim();
   if(!clienteId) { showToast('⚠️ Selecciona un cliente(a)'); return; }
   if(!fecha) { showToast('⚠️ Elige la fecha de pago'); return; }
   const cl=data.clientes.find(c=>c.id===clienteId);
-  data.recordatorios.push({ id:Date.now()+'', clienteId, ventaId, fecha, hora, nota, estado:'pendiente', creadoEn:new Date().toISOString() });
-  save();
-  showToast('🔔 Recordatorio creado para '+(cl?cl.nombre:'')+' el '+fecha);
+
+  const guardado = await guardarEnLaNube(async () => {
+    const creado = await repoRecordatorios.crear({ clienteId, ventaId, fecha, hora, nota });
+    data.recordatorios.push(creado);
+  }, '🔔 Recordatorio creado para '+(cl?cl.nombre:'')+' el '+fecha);
+
+  if(!guardado) return;
+
   document.getElementById('rec-cliente').value='';
   document.getElementById('rec-venta').innerHTML='<option value="">— Elige cliente(a) primero —</option>';
   document.getElementById('rec-fecha').value='';
@@ -1039,9 +1211,16 @@ function abrirPagoDesdeRec(recId) {
   openVentaDetalle(r.ventaId); window._recIdParaPago=recId;
 }
 
-function descartarRec(id) {
+async function descartarRec(id) {
   const r=data.recordatorios.find(x=>x.id===id); if(!r) return;
-  r.estado='descartado'; save(); showToast('Recordatorio descartado');
+
+  const guardado = await guardarEnLaNube(async () => {
+    await repoRecordatorios.actualizar(id, { estado: 'descartado' });
+    r.estado = 'descartado';
+  }, 'Recordatorio descartado');
+
+  if(!guardado) return;
+
   renderRecordatoriosHoy(); renderRecordatorios(recFiltroActual); updateNotifBadge();
 }
 
@@ -1062,12 +1241,24 @@ function editarRecordatorio(id) {
   document.getElementById('modal-rec').classList.add('open');
 }
 
-function guardarEdicionRec(id) {
+async function guardarEdicionRec(id) {
   const r=data.recordatorios.find(x=>x.id===id); if(!r) return;
   const nf=document.getElementById('edit-rec-fecha').value;
   if(!nf) { showToast('⚠️ Elige una fecha'); return; }
-  r.fecha=nf; r.hora=document.getElementById('edit-rec-hora').value||'09:00'; r.nota=document.getElementById('edit-rec-nota').value.trim();
-  save(); showToast('✅ Recordatorio actualizado'); closeModal('modal-rec');
+  const cambios = {
+    fecha: nf,
+    hora: document.getElementById('edit-rec-hora').value||'09:00',
+    nota: document.getElementById('edit-rec-nota').value.trim(),
+  };
+
+  const guardado = await guardarEnLaNube(async () => {
+    await repoRecordatorios.actualizar(id, cambios);
+    Object.assign(r, cambios);
+  }, '✅ Recordatorio actualizado');
+
+  if(!guardado) return;
+
+  closeModal('modal-rec');
   renderRecordatoriosHoy(); renderRecordatorios(recFiltroActual);
 }
 
@@ -1173,7 +1364,12 @@ function checkRecordatorios() {
     // Se atiende el mas urgente: hay un solo popup y apilar avisos abruma.
     const siguiente = cola[0];
     siguiente.avisadoEn = new Date().toISOString();
-    save();
+    // Se guarda para que el aviso siga contando aunque se cambie de
+    // dispositivo o se recargue la pagina. Si falla, no se interrumpe el
+    // aviso: como mucho volvera a sonar antes de tiempo.
+    repoRecordatorios
+      .actualizar(siguiente.id, { avisadoEn: siguiente.avisadoEn })
+      .catch((error) => console.warn('No se pudo registrar el aviso:', error));
     mostrarNotifPopup(siguiente);
     notificarEnSistema(siguiente);
   }
@@ -1200,7 +1396,12 @@ function mostrarNotifPopup(r) {
 function dismissNotif() {
   if(notifActiva) {
     const r = data.recordatorios.find(x => x.id === notifActiva.id);
-    if(r) { r.visto = true; save(); }
+    if(r) {
+      r.visto = true;
+      repoRecordatorios
+        .actualizar(r.id, { visto: true })
+        .catch((error) => console.warn('No se pudo marcar el aviso como visto:', error));
+    }
   }
   document.getElementById('notif-popup').style.display = 'none';
   notifActiva = null;
@@ -1336,16 +1537,76 @@ document.addEventListener('keydown', (evento) => {
   if(evento.key === 'Escape') cerrarSugerencias();
 });
 
-// ── INIT ──
-renderCategorias();
-initFiltroMeses();
-renderInicio();
-initVenta();
-updateNotifBadge();
-setInterval(checkRecordatorios, 30000);
-checkRecordatorios();
-calcPrecio();
-renderTablaRef();
+// ── ARRANQUE ──
+// La aplicacion no se dibuja hasta tener sesion Y datos. Antes bastaba leer
+// localStorage, que es instantaneo; ahora los datos llegan por red y hay tres
+// resultados posibles: sin sesion, error de carga, o todo bien.
+
+const CADA_30_SEGUNDOS = 30000;
+
+const pantallaCarga = document.getElementById('pantalla-carga');
+const cargaMensaje = document.getElementById('carga-mensaje');
+const cargaAcciones = document.getElementById('carga-acciones');
+
+/** Cambia el texto de la pantalla de carga. */
+function informarCarga(mensaje, conAcciones = false) {
+  cargaMensaje.textContent = mensaje;
+  cargaAcciones.style.display = conAcciones ? 'flex' : 'none';
+}
+
+/** Dibuja todas las pantallas con los datos ya cargados. */
+function dibujarTodo() {
+  renderCategorias();
+  initFiltroMeses();
+  renderInicio();
+  initVenta();
+  updateNotifBadge();
+  calcPrecio();
+  renderTablaRef();
+}
+
+async function arrancar() {
+  // 1. Exigir sesion. Sin ella no hay datos que mostrar, porque las politicas
+  //    RLS del servidor no devolverian ninguna fila.
+  let usuario = null;
+
+  try {
+    usuario = await obtenerUsuarioActual();
+  } catch (error) {
+    console.error('No se pudo comprobar la sesion:', error);
+  }
+
+  if (!usuario) {
+    // replace y no href: el boton atras no debe devolver a la aplicacion.
+    window.location.replace('./login.html');
+    return;
+  }
+
+  // 2. Traer los datos.
+  informarCarga('Cargando tu negocio…');
+
+  try {
+    await cargarTodo();
+  } catch (error) {
+    console.error('No se pudieron cargar los datos:', error);
+    informarCarga('No se pudieron cargar tus datos. Revisa tu conexion.', true);
+    return;
+  }
+
+  // 3. Dibujar y quitar la pantalla de carga.
+  dibujarTodo();
+  pantallaCarga.style.display = 'none';
+
+  setInterval(checkRecordatorios, CADA_30_SEGUNDOS);
+  checkRecordatorios();
+}
+
+document.getElementById('btn-reintentar').addEventListener('click', () => {
+  informarCarga('Reintentando…');
+  arrancar();
+});
+
+arrancar();
 </script>
 </body>
 </html>

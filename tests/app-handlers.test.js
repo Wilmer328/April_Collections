@@ -41,7 +41,9 @@ function expuestasEnWindow() {
 
 /** Nombres declarados como función dentro del script. */
 function funcionesDeclaradas() {
-  return new Set([...html.matchAll(/^function (\w+)/gm)].map((m) => m[1]));
+  // Acepta `function` y `async function`: al pasar la aplicacion a
+  // Supabase, las escrituras se volvieron asincronas.
+  return new Set([...html.matchAll(/^(?:async )?function (\w+)/gm)].map((m) => m[1]));
 }
 
 describe('app.html — handlers en línea', () => {
