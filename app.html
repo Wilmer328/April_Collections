@@ -34,6 +34,19 @@
   body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--charcoal); min-height: 100vh; }
   .app-header { background: var(--charcoal); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
   .brand { display: flex; align-items: center; gap: 10px; }
+  .sesion { display: flex; align-items: center; gap: 8px; }
+  .sesion__avatar {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    background: var(--rose); object-fit: cover;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+  /* El nombre se oculta en pantallas estrechas: en un telefono la cabecera no
+     da para el nombre completo y lo importante es el boton de salir. */
+  .sesion__nombre {
+    font-size: 12px; color: rgba(255,255,255,0.75);
+    max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  @media (max-width: 560px) { .sesion__nombre, #fechaHoy { display: none; } }
   .brand-icon { width: 28px; height: 28px; background: var(--rose); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
   .brand-name { font-family: 'Playfair Display', serif; color: var(--white); font-size: 16px; }
   .brand-name span { color: var(--gold); }
@@ -159,6 +172,14 @@
     <button id="btn-instalar" class="btn btn-sm" type="button" hidden
             style="background:var(--gold);color:var(--charcoal);border:none">⬇️ Instalar</button>
     <div style="font-size:11px;color:rgba(255,255,255,0.4);" id="fechaHoy"></div>
+    <div class="sesion" id="sesion" hidden>
+      <img class="sesion__avatar" id="sesion-avatar" alt="" hidden>
+      <span class="sesion__avatar" id="sesion-inicial" aria-hidden="true"></span>
+      <span class="sesion__nombre" id="sesion-nombre"></span>
+      <button class="btn btn-sm" id="btn-salir" type="button"
+              style="background:rgba(255,255,255,0.12);color:#fff;border:none"
+              title="Cerrar sesión">Salir</button>
+    </div>
   </div>
 </header>
 
@@ -401,7 +422,7 @@ import { validarCategoria, agregarCategoria, eliminarCategoria, puedeEliminarse,
 import { pendientesDeAvisar, describirMomento, MINUTOS_ANTICIPACION,
          MINUTOS_ENTRE_INSISTENCIAS } from './src/domain/notifications.js';
 import { registrarServiceWorker, conectarBotonInstalar } from './src/ui/registrar-sw.js';
-import { obtenerUsuarioActual } from './src/auth/session.js';
+import { obtenerUsuarioActual, cerrarSesion } from './src/auth/session.js';
 import * as repoClientes from './src/data/repositories/clientes.js';
 import * as repoProductos from './src/data/repositories/productos.js';
 import * as repoVentas from './src/data/repositories/ventas.js';
@@ -1554,6 +1575,46 @@ function informarCarga(mensaje, conAcciones = false) {
   cargaAcciones.style.display = conAcciones ? 'flex' : 'none';
 }
 
+/**
+ * Muestra quien tiene la sesion abierta y habilita el boton de salir.
+ *
+ * Importa que se vea el correo: la aplicacion admite varias cuentas
+ * autorizadas, y cada una tiene sus propios datos. Sin esta marca, alguien
+ * podria estar capturando ventas en la cuenta equivocada sin notarlo.
+ */
+function mostrarSesion(usuario) {
+  const inicial = document.getElementById('sesion-inicial');
+  const avatar = document.getElementById('sesion-avatar');
+
+  document.getElementById('sesion-nombre').textContent = usuario.email || usuario.nombre;
+
+  if (usuario.avatarUrl) {
+    avatar.src = usuario.avatarUrl;
+    avatar.hidden = false;
+    inicial.hidden = true;
+  } else {
+    inicial.textContent = (usuario.nombre || '?').trim().charAt(0).toUpperCase();
+  }
+
+  document.getElementById('sesion').hidden = false;
+}
+
+/** Cierra la sesion y devuelve al inicio de sesion. */
+async function salir() {
+  const boton = document.getElementById('btn-salir');
+  boton.disabled = true;
+
+  try {
+    await cerrarSesion();
+  } catch (error) {
+    // Aunque falle el cierre en el servidor, se sale igualmente: dejar a la
+    // usuaria dentro tras pedir salir es peor que un token que expirara solo.
+    console.warn('No se pudo cerrar la sesion limpiamente:', error);
+  }
+
+  window.location.replace('./login.html');
+}
+
 /** Dibuja todas las pantallas con los datos ya cargados. */
 function dibujarTodo() {
   renderCategorias();
@@ -1594,12 +1655,15 @@ async function arrancar() {
   }
 
   // 3. Dibujar y quitar la pantalla de carga.
+  mostrarSesion(usuario);
   dibujarTodo();
   pantallaCarga.style.display = 'none';
 
   setInterval(checkRecordatorios, CADA_30_SEGUNDOS);
   checkRecordatorios();
 }
+
+document.getElementById('btn-salir').addEventListener('click', salir);
 
 document.getElementById('btn-reintentar').addEventListener('click', () => {
   informarCarga('Reintentando…');
