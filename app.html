@@ -423,6 +423,25 @@
   📵 Sin conexión. Puedes seguir trabajando: los datos se guardan en este dispositivo.
 </div>
 
+<!-- Los fallos al guardar NO se muestran en un toast: desaparecia en menos de
+     tres segundos y era facil no verlo, de modo que la usuaria creia haber
+     guardado. Este aviso se queda hasta que se cierra. -->
+<div id="error-guardado" hidden
+     style="position:fixed;bottom:0;left:0;right:0;z-index:600;background:var(--danger-light);
+            border-top:3px solid var(--danger);padding:14px 16px;box-shadow:var(--shadow-lg)">
+  <div style="max-width:860px;margin:0 auto;display:flex;gap:12px;align-items:flex-start">
+    <span style="font-size:20px" aria-hidden="true">⚠️</span>
+    <div style="flex:1">
+      <div style="font-weight:600;color:var(--danger-text);margin-bottom:3px">No se pudo guardar</div>
+      <div id="error-guardado-texto" style="font-size:13px;color:var(--charcoal);word-break:break-word"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px">
+        El cambio NO quedó registrado. Vuelve a intentarlo cuando tengas conexión.
+      </div>
+    </div>
+    <button id="error-guardado-cerrar" class="btn btn-sm btn-ghost" type="button">Cerrar</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -498,10 +517,29 @@ async function guardarEnLaNube(operacion, exito) {
     if (exito) showToast(exito);
     return true;
   } catch (error) {
-    console.error(error);
-    showToast('⚠️ ' + error.message);
+    console.error('Fallo al guardar:', error);
+    mostrarErrorDeGuardado(error);
     return false;
   }
+}
+
+/**
+ * Muestra un fallo de guardado y lo deja en pantalla hasta que se cierre.
+ *
+ * @param {Error & { causa?: object }} error
+ */
+function mostrarErrorDeGuardado(error) {
+  // Si viene de la capa de datos, el error original de Supabase trae el
+  // detalle util: que restriccion se violo o que politica rechazo la fila.
+  const detalle = error.causa
+    ? [error.causa.message, error.causa.details, error.causa.hint, error.causa.code]
+        .filter(Boolean).join(' · ')
+    : '';
+
+  document.getElementById('error-guardado-texto').textContent =
+    error.message + (detalle ? ' — ' + detalle : '');
+
+  document.getElementById('error-guardado').hidden = false;
 }
 
 function fmt(n) { return 'L ' + parseFloat(n||0).toFixed(2); }
@@ -1782,6 +1820,10 @@ async function arrancar() {
 }
 
 document.getElementById('btn-salir').addEventListener('click', salir);
+
+document.getElementById('error-guardado-cerrar').addEventListener('click', () => {
+  document.getElementById('error-guardado').hidden = true;
+});
 
 document.getElementById('btn-reintentar').addEventListener('click', () => {
   informarCarga('Reintentando…');

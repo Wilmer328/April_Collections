@@ -25,7 +25,11 @@ export class ErrorDeDatos extends Error {
   constructor(operacion, causa) {
     super(`No se pudo ${operacion}: ${causa?.message ?? 'error desconocido'}`);
     this.name = 'ErrorDeDatos';
+    // Se conserva el error original completo: PostgREST devuelve en `details`,
+    // `hint` y `code` qué restriccion se violo o qué politica rechazo la fila,
+    // y sin eso solo queda un mensaje generico que no dice donde mirar.
     this.causa = causa;
+    this.operacion = operacion;
   }
 }
 
