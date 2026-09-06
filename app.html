@@ -201,12 +201,12 @@
 </header>
 
 <nav class="nav">
-  <button class="nav-btn active" onclick="showPage('inicio',this)">🏠 Inicio</button>
-  <button class="nav-btn" onclick="showPage('venta',this)">🛍️ Venta</button>
-  <button class="nav-btn" onclick="showPage('clientes',this)">👥 Clientes</button>
-  <button class="nav-btn" onclick="showPage('inventario',this)">📦 Inventario</button>
-  <button class="nav-btn" onclick="showPage('precios',this)">🏷️ Precios</button>
-  <button class="nav-btn" id="nav-recordatorios" onclick="showPage('recordatorios',this)">🔔 Recordatorios<span id="notif-badge" style="display:none;background:var(--danger);color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:700;line-height:15px;text-align:center;margin-left:4px;vertical-align:middle;display:none"></span></button>
+  <button class="nav-btn active" data-pagina="inicio" onclick="showPage('inicio',this)">🏠 Inicio</button>
+  <button class="nav-btn" data-pagina="venta" onclick="showPage('venta',this)">🛍️ Venta</button>
+  <button class="nav-btn" data-pagina="clientes" onclick="showPage('clientes',this)">👥 Clientes</button>
+  <button class="nav-btn" data-pagina="inventario" onclick="showPage('inventario',this)">📦 Inventario</button>
+  <button class="nav-btn" data-pagina="precios" onclick="showPage('precios',this)">🏷️ Precios</button>
+  <button class="nav-btn" id="nav-recordatorios" data-pagina="recordatorios" onclick="showPage('recordatorios',this)">🔔 Recordatorios<span id="notif-badge" style="display:none;background:var(--danger);color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:700;line-height:15px;text-align:center;margin-left:4px;vertical-align:middle;display:none"></span></button>
 </nav>
 
 <!-- INICIO -->
@@ -519,11 +519,27 @@ function escaparHtml(texto) {
 
 document.getElementById('fechaHoy').textContent = new Date().toLocaleDateString('es-HN', {weekday:'short',day:'numeric',month:'short'});
 
+/** Pestanas que se pueden abrir directamente desde la direccion. */
+const PAGINAS = ['inicio', 'venta', 'clientes', 'inventario', 'precios', 'recordatorios'];
+
 function showPage(id, btn) {
+  if(!PAGINAS.includes(id)) return;
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  if(btn) btn.classList.add('active');
+
+  // Si no viene el boton, se busca: ocurre al abrir la aplicacion desde una
+  // direccion como /app#clientes, donde nadie pulso nada.
+  const boton = btn ?? document.querySelector(`[data-pagina="${id}"]`);
+  if(boton) boton.classList.add('active');
+
+  // La direccion refleja la pestana abierta, para poder enlazarla y para que
+  // recargar no devuelva siempre al inicio. Se usa replaceState y no
+  // location.hash para no llenar el historial de entradas al navegar.
+  if(window.location.hash.slice(1) !== id) {
+    window.history.replaceState(null, '', '#' + id);
+  }
   if(id==='inicio') renderInicio();
   if(id==='clientes') renderClientes();
   if(id==='inventario') { renderCategorias(); renderInventario(catActual); }
@@ -1674,6 +1690,11 @@ async function arrancar() {
   // 3. Dibujar y quitar la pantalla de carga.
   mostrarSesion(usuario);
   dibujarTodo();
+
+  // Abre la pestana que indique la direccion, si trae una valida. Es lo que
+  // hace enlazables /app#clientes o /app#recordatorios.
+  const pedida = window.location.hash.slice(1);
+  if(PAGINAS.includes(pedida) && pedida !== 'inicio') showPage(pedida);
   pantallaCarga.style.display = 'none';
 
   setInterval(checkRecordatorios, CADA_30_SEGUNDOS);

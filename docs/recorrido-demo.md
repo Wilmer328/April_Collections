@@ -5,6 +5,10 @@ decisión de ingeniería, no solo una pantalla.
 
 **Duración estimada:** 6 minutos.
 
+Cada paso tiene su propia dirección: las pestañas de la aplicación son
+enlazables con `#`, así que se puede saltar directamente a la pantalla que toca
+en lugar de explicar dónde hacer clic.
+
 ## Acceso
 
 | | |
@@ -49,7 +53,7 @@ lado del servidor.
 
 ## Paso 2 · Distinguir dos clientas con el mismo nombre
 
-**URL:** https://www.jsanchez.site/app → pestaña **👥 Clientes**
+**URL:** https://www.jsanchez.site/app#clientes
 
 Escribe `maria` en el buscador.
 
@@ -72,7 +76,7 @@ cubierta por pruebas.
 
 ## Paso 3 · Registrar una venta
 
-**URL:** https://www.jsanchez.site/app → pestaña **🛍️ Venta**
+**URL:** https://www.jsanchez.site/app#venta
 
 Elige una clienta, escribe `perfume` en el buscador de productos y selecciona
 uno.
@@ -98,7 +102,7 @@ una deuda saldada queda con fracciones pendientes.
 
 ## Paso 4 · Cobros y avisos
 
-**URL:** https://www.jsanchez.site/app → pestaña **🔔 Recordatorios**
+**URL:** https://www.jsanchez.site/app#recordatorios
 
 **Qué observar**
 
