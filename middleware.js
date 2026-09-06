@@ -37,22 +37,51 @@ const COOKIE_SESION = 'ac_sesion';
 const REDIRECCION_TEMPORAL = 302;
 
 /**
- * @param {Request & { cookies: { get: (nombre: string) => { value: string } | undefined } }} peticion
- * @returns {Response | undefined} respuesta de redirección, o nada para seguir.
+ * Lee una cookie de la cabecera `Cookie`.
+ *
+ * Se parsea a mano a propósito: aquí llega un `Request` estándar de la Web,
+ * que no trae el ayudante `.cookies` de otros entornos. Darlo por hecho fue
+ * justo lo que hizo fallar la primera versión de este archivo.
+ *
+ * @param {string | null} cabecera valor de la cabecera Cookie.
+ * @param {string} nombre
+ * @returns {string | null}
  */
-export default function middleware(peticion) {
-  const marca = peticion.cookies.get(COOKIE_SESION);
-
-  if (marca?.value === '1') {
-    return undefined;
+function leerCookie(cabecera, nombre) {
+  if (!cabecera) {
+    return null;
   }
 
-  const destino = new URL('/login', peticion.url);
+  for (const trozo of cabecera.split(';')) {
+    const separador = trozo.indexOf('=');
+
+    if (separador === -1) {
+      continue;
+    }
+
+    if (trozo.slice(0, separador).trim() === nombre) {
+      return trozo.slice(separador + 1).trim();
+    }
+  }
+
+  return null;
+}
+
+/**
+ * @param {Request} peticion
+ * @returns {Response | undefined} redirección, o nada para dejar pasar.
+ */
+export default function middleware(peticion) {
+  const marca = leerCookie(peticion.headers.get('cookie'), COOKIE_SESION);
+
+  if (marca === '1') {
+    return undefined;
+  }
 
   return new Response(null, {
     status: REDIRECCION_TEMPORAL,
     headers: {
-      Location: destino.toString(),
+      Location: new URL('/login', peticion.url).toString(),
       // Sin cachear: si se guardara, un visitante con sesión recibiría después
       // la redirección guardada para el anónimo.
       'Cache-Control': 'no-store',
