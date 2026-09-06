@@ -104,6 +104,9 @@ La regla que sostiene el diseño: **`domain/` no importa nada de las otras
 capas ni del navegador**. Por eso se prueba sin simular un DOM y por eso la
 cobertura de esa capa es real y no está inflada con pruebas artificiales.
 
+La arquitectura está documentada en [docs/arquitectura.md](docs/arquitectura.md),
+con los tres niveles del modelo C4 en diagramas Mermaid.
+
 Las decisiones importantes se registran en [docs/adr/](docs/adr/).
 
 ## Configuración

@@ -25,8 +25,10 @@ teléfono. No es una usuaria técnica.
 
 ## Decisión
 
-Usar **Supabase Auth con Google como único proveedor de identidad**, mediante
-el flujo OAuth 2.0 que expone `signInWithOAuth({ provider: 'google' })`.
+Usar Supabase Auth con Google como único proveedor de identidad.
+
+Se implementa con el flujo OAuth 2.0 que expone
+`signInWithOAuth({ provider: 'google' })`.
 
 La lógica de sesión queda aislada en `src/auth/session.js`. La interfaz nunca
 llama a `supabase.auth.*` directamente: solo usa las funciones de ese módulo,
