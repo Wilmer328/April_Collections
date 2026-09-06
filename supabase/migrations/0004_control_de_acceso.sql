@@ -61,25 +61,21 @@ create trigger al_registrarse_exigir_acceso
   execute function public.exigir_acceso_autorizado();
 
 -- ── Autorizados iniciales ─────────────────────────────────────────────────
--- Solo se siembra el correo del autor del proyecto.
+-- Las dos personas que administran el negocio.
 --
--- LOS DEMAS CORREOS NO SE VERSIONAN, A PROPOSITO. Este repositorio es publico:
--- escribir aqui el correo personal de la duena del negocio lo dejaria indexado
--- y expuesto a recoleccion por robots de spam, de forma permanente y para un
--- beneficio nulo. La lista de autorizados es configuracion de la instalacion,
--- no codigo.
+-- Se versionan por decision explicita del autor, para que la instalacion sea
+-- reproducible: quien clone el repositorio y ejecute las migraciones obtiene
+-- el mismo control de acceso sin pasos manuales.
 --
--- Se agregan desde el SQL Editor de Supabase con un insert como el de abajo:
---
---   insert into public.accesos_autorizados (correo, motivo) values
---     ('...', 'Duena del negocio'),
---     ('...', 'Cuenta demo del evaluador')
---   on conflict (correo) do nothing;
+-- La contrapartida asumida es que este repositorio es publico, asi que estos
+-- correos quedan visibles. Para agregar correos sin versionarlos, se hace
+-- desde el SQL Editor con un insert igual que este.
 --
 -- La comparacion del disparador usa lower(), asi que las mayusculas del correo
 -- no afectan al acceso.
 insert into public.accesos_autorizados (correo, motivo) values
-  ('wilmer415sanchez@gmail.com', 'Autor del proyecto')
+  ('wilmer415sanchez@gmail.com', 'Autor del proyecto'),
+  ('daysigomez230@gmail.com',    'Duena del negocio')
 on conflict (correo) do nothing;
 
 -- ── Revision de cuentas ya existentes ─────────────────────────────────────
