@@ -189,3 +189,6 @@ begin
 
   raise notice 'Datos demo sembrados para % (%).', correo_demo, duenio;
 end $$;
+
+-- ── Registro ──────────────────────────────────────────────────────────────
+select public.registrar_migracion('0003', 'datos_demo');

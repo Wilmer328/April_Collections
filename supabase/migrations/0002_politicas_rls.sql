@@ -7,6 +7,12 @@
 --
 -- Sin RLS activo, la anon key permitiria a cualquiera leer la base entera. Por
 -- eso se habilita en TODAS las tablas, incluidas las que no tienen owner_id.
+--
+-- IDEMPOTENTE: cada politica y el disparador se borran antes de crearse, y la
+-- funcion usa OR REPLACE. PostgreSQL no admite CREATE POLICY IF NOT EXISTS, de
+-- ahi el DROP previo en lugar de una guarda mas corta.
+--
+-- REQUIERE 0000 y 0001 ejecutados antes.
 
 -- ── Habilitar RLS ─────────────────────────────────────────────────────────
 -- Al habilitarlo sin politicas, la tabla queda cerrada por completo. Las
@@ -23,14 +29,17 @@ alter table public.recordatorios  enable row level security;
 -- ── Perfil ────────────────────────────────────────────────────────────────
 -- Cada quien ve y edita el suyo. No hay politica de borrado: el perfil
 -- desaparece con la cuenta, por la clave foranea en cascada.
+drop policy if exists "perfil propio: leer" on public.perfiles;
 create policy "perfil propio: leer"
   on public.perfiles for select
   using (auth.uid() = id);
 
+drop policy if exists "perfil propio: crear" on public.perfiles;
 create policy "perfil propio: crear"
   on public.perfiles for insert
   with check (auth.uid() = id);
 
+drop policy if exists "perfil propio: actualizar" on public.perfiles;
 create policy "perfil propio: actualizar"
   on public.perfiles for update
   using (auth.uid() = id)
@@ -44,26 +53,31 @@ create policy "perfil propio: actualizar"
 -- intenta escribir. Hacen falta las dos: sin WITH CHECK, alguien podria
 -- insertar una fila con el owner_id de otra persona.
 
+drop policy if exists "categorias propias" on public.categorias;
 create policy "categorias propias"
   on public.categorias for all
   using (auth.uid() = owner_id)
   with check (auth.uid() = owner_id);
 
+drop policy if exists "clientes propios" on public.clientes;
 create policy "clientes propios"
   on public.clientes for all
   using (auth.uid() = owner_id)
   with check (auth.uid() = owner_id);
 
+drop policy if exists "productos propios" on public.productos;
 create policy "productos propios"
   on public.productos for all
   using (auth.uid() = owner_id)
   with check (auth.uid() = owner_id);
 
+drop policy if exists "ventas propias" on public.ventas;
 create policy "ventas propias"
   on public.ventas for all
   using (auth.uid() = owner_id)
   with check (auth.uid() = owner_id);
 
+drop policy if exists "recordatorios propios" on public.recordatorios;
 create policy "recordatorios propios"
   on public.recordatorios for all
   using (auth.uid() = owner_id)
@@ -78,6 +92,7 @@ create policy "recordatorios propios"
 -- un EXISTS sobre ventas. El indice de la clave primaria lo resuelve, y se
 -- prefiere pagar eso antes que arriesgar datos incoherentes.
 
+drop policy if exists "lineas de ventas propias" on public.venta_items;
 create policy "lineas de ventas propias"
   on public.venta_items for all
   using (
@@ -93,6 +108,7 @@ create policy "lineas de ventas propias"
     )
   );
 
+drop policy if exists "abonos de ventas propias" on public.abonos;
 create policy "abonos de ventas propias"
   on public.abonos for all
   using (
@@ -118,7 +134,7 @@ alter view public.ventas_con_saldo set (security_invoker = on);
 -- ── Alta automatica del perfil ────────────────────────────────────────────
 -- Crea el perfil en cuanto alguien se registra, para que la aplicacion no
 -- tenga que acordarse de hacerlo despues del primer inicio de sesion.
-create function public.crear_perfil_al_registrarse()
+create or replace function public.crear_perfil_al_registrarse()
 returns trigger
 language plpgsql
 security definer
@@ -139,7 +155,12 @@ begin
 end;
 $$;
 
+drop trigger if exists al_crearse_usuario on auth.users;
+
 create trigger al_crearse_usuario
   after insert on auth.users
   for each row
   execute function public.crear_perfil_al_registrarse();
+
+-- ── Registro ──────────────────────────────────────────────────────────────
+select public.registrar_migracion('0002', 'politicas_rls');

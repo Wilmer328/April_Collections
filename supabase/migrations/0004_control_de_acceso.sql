@@ -100,3 +100,6 @@ begin
     raise notice 'CUENTAS EXISTENTES NO AUTORIZADAS: %. Revisalas en Authentication -> Users.', intrusas;
   end if;
 end $$;
+
+-- ── Registro ──────────────────────────────────────────────────────────────
+select public.registrar_migracion('0004', 'control_de_acceso');

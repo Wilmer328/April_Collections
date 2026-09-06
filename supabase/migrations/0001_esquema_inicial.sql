@@ -17,11 +17,18 @@
 --
 --   * Las marcas de tiempo de auditoria si son timestamptz, porque ahi el
 --     instante exacto si importa.
+--
+--   * Todo el guion es IDEMPOTENTE: volver a ejecutarlo no falla ni duplica
+--     nada. Las tablas e indices usan IF NOT EXISTS y la vista OR REPLACE.
+--     Una migracion que solo se puede correr una vez obliga a recordar si ya
+--     se corrio, y recordar no es una garantia.
+--
+-- REQUIERE haber ejecutado antes 0000_registro_de_migraciones.sql.
 
 -- ── Perfil ────────────────────────────────────────────────────────────────
 -- Extiende auth.users con lo que la aplicacion necesita mostrar. Supabase no
 -- permite anadir columnas a auth.users, de ahi esta tabla.
-create table public.perfiles (
+create table if not exists public.perfiles (
   id          uuid primary key references auth.users (id) on delete cascade,
   correo      text not null,
   nombre      text,
@@ -33,7 +40,7 @@ comment on table public.perfiles is
 
 -- ── Categorias del catalogo ───────────────────────────────────────────────
 -- Las administra la usuaria, no vienen fijas en el codigo.
-create table public.categorias (
+create table if not exists public.categorias (
   id          uuid primary key default gen_random_uuid(),
   owner_id    uuid not null references auth.users (id) on delete cascade,
   nombre      text not null check (length(trim(nombre)) between 1 and 24),
@@ -43,11 +50,11 @@ create table public.categorias (
 -- No puede haber dos categorias con el mismo nombre para la misma usuaria.
 -- Se compara en minusculas para que "Joyeria" y "joyeria" no convivan como
 -- rubros distintos, igual que hace src/domain/categories.js.
-create unique index categorias_owner_nombre_idx
+create unique index if not exists categorias_owner_nombre_idx
   on public.categorias (owner_id, lower(nombre));
 
 -- ── Clientas ──────────────────────────────────────────────────────────────
-create table public.clientes (
+create table if not exists public.clientes (
   id          uuid primary key default gen_random_uuid(),
   owner_id    uuid not null references auth.users (id) on delete cascade,
   nombre      text not null check (length(trim(nombre)) > 0),
@@ -60,14 +67,14 @@ create table public.clientes (
 
 -- Unico cuando se informa. El indice parcial deja pasar varios NULL, que es lo
 -- que se quiere: muchas clientas sin DNI conviven sin chocar entre si.
-create unique index clientes_owner_dni_idx
+create unique index if not exists clientes_owner_dni_idx
   on public.clientes (owner_id, dni)
   where dni is not null;
 
-create index clientes_owner_idx on public.clientes (owner_id);
+create index if not exists clientes_owner_idx on public.clientes (owner_id);
 
 -- ── Productos ─────────────────────────────────────────────────────────────
-create table public.productos (
+create table if not exists public.productos (
   id               uuid primary key default gen_random_uuid(),
   owner_id         uuid not null references auth.users (id) on delete cascade,
   nombre           text not null check (length(trim(nombre)) > 0),
@@ -80,12 +87,12 @@ create table public.productos (
   creado_en        timestamptz not null default now()
 );
 
-create index productos_owner_idx on public.productos (owner_id);
+create index if not exists productos_owner_idx on public.productos (owner_id);
 
 -- ── Ventas ────────────────────────────────────────────────────────────────
 -- El total NO se guarda: es la suma de las lineas y se calcula. Guardarlo
 -- abriria la puerta a que quedara desincronizado con sus propias lineas.
-create table public.ventas (
+create table if not exists public.ventas (
   id          uuid primary key default gen_random_uuid(),
   owner_id    uuid not null references auth.users (id) on delete cascade,
   cliente_id  uuid not null references public.clientes (id) on delete restrict,
@@ -94,11 +101,11 @@ create table public.ventas (
   creado_en   timestamptz not null default now()
 );
 
-create index ventas_owner_fecha_idx on public.ventas (owner_id, fecha desc);
-create index ventas_cliente_idx on public.ventas (cliente_id);
+create index if not exists ventas_owner_fecha_idx on public.ventas (owner_id, fecha desc);
+create index if not exists ventas_cliente_idx on public.ventas (cliente_id);
 
 -- ── Lineas de venta ───────────────────────────────────────────────────────
-create table public.venta_items (
+create table if not exists public.venta_items (
   id               uuid primary key default gen_random_uuid(),
   venta_id         uuid not null references public.ventas (id) on delete cascade,
   -- Puede ser nulo: la usuaria vende cosas que no estan en el catalogo.
@@ -112,10 +119,10 @@ create table public.venta_items (
   cantidad         integer not null check (cantidad >= 1)
 );
 
-create index venta_items_venta_idx on public.venta_items (venta_id);
+create index if not exists venta_items_venta_idx on public.venta_items (venta_id);
 
 -- ── Abonos ────────────────────────────────────────────────────────────────
-create table public.abonos (
+create table if not exists public.abonos (
   id              uuid primary key default gen_random_uuid(),
   venta_id        uuid not null references public.ventas (id) on delete cascade,
   monto_centavos  bigint not null check (monto_centavos > 0),
@@ -123,10 +130,10 @@ create table public.abonos (
   creado_en       timestamptz not null default now()
 );
 
-create index abonos_venta_idx on public.abonos (venta_id);
+create index if not exists abonos_venta_idx on public.abonos (venta_id);
 
 -- ── Recordatorios de cobro ────────────────────────────────────────────────
-create table public.recordatorios (
+create table if not exists public.recordatorios (
   id          uuid primary key default gen_random_uuid(),
   owner_id    uuid not null references auth.users (id) on delete cascade,
   cliente_id  uuid not null references public.clientes (id) on delete cascade,
@@ -143,7 +150,7 @@ create table public.recordatorios (
   creado_en   timestamptz not null default now()
 );
 
-create index recordatorios_owner_fecha_idx
+create index if not exists recordatorios_owner_fecha_idx
   on public.recordatorios (owner_id, fecha)
   where estado = 'pendiente';
 
@@ -152,7 +159,7 @@ create index recordatorios_owner_fecha_idx
 -- repetir el mismo calculo en cada consulta, que es justo el problema que
 -- tenia la version anterior de la aplicacion: el saldo pendiente estaba
 -- duplicado en siete sitios.
-create view public.ventas_con_saldo as
+create or replace view public.ventas_con_saldo as
 select
   v.id,
   v.owner_id,
@@ -180,3 +187,6 @@ left join (
 
 comment on view public.ventas_con_saldo is
   'Total, cobrado, pendiente y ganancia de cada venta. El pendiente nunca es negativo: no se manejan saldos a favor.';
+
+-- ── Registro ──────────────────────────────────────────────────────────────
+select public.registrar_migracion('0001', 'esquema_inicial');
