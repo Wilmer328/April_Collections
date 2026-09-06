@@ -445,6 +445,7 @@ import * as repoProductos from './src/data/repositories/productos.js';
 import * as repoVentas from './src/data/repositories/ventas.js';
 import * as repoRecordatorios from './src/data/repositories/recordatorios.js';
 import * as repoCategorias from './src/data/repositories/categorias.js';
+import * as cache from './src/data/cache.js';
 
 /**
  * Copia en memoria de los datos del negocio.
@@ -471,7 +472,11 @@ async function cargarTodo() {
   ]);
 
   data = { clientes, productos, ventas, recordatorios, categorias };
+  cache.guardar(usuarioActual?.id, data);
 }
+
+/** Quien tiene la sesion abierta. La cache va atada a su identificador. */
+let usuarioActual = null;
 /**
  * Ejecuta una escritura contra Supabase informando del resultado.
  *
@@ -487,6 +492,9 @@ async function cargarTodo() {
 async function guardarEnLaNube(operacion, exito) {
   try {
     await operacion();
+    // La cache se refresca despues de cada escritura correcta: si no, al abrir
+    // sin conexion se veria el estado anterior al ultimo cambio.
+    cache.guardar(usuarioActual?.id, data);
     if (exito) showToast(exito);
     return true;
   } catch (error) {
@@ -1574,8 +1582,46 @@ document.getElementById('estado-notificaciones').addEventListener('click', (even
 registrarServiceWorker();
 conectarBotonInstalar(document.getElementById('btn-instalar'));
 
+/**
+ * Avisa de que lo que se ve viene de la copia local y no del servidor.
+ *
+ * Importa decirlo: alguien podria registrar una venta creyendo que ve el
+ * inventario al dia cuando en realidad es el de hace horas.
+ *
+ * @param {string|null} guardadoEn fecha ISO de la copia, o null para ocultarlo.
+ */
+function mostrarAvisoCache(guardadoEn) {
+  const aviso = document.getElementById('aviso-sin-conexion');
+
+  if (!guardadoEn) {
+    aviso.hidden = navigator.onLine;
+    aviso.textContent = '📵 Sin conexión. Puedes consultar tus datos, pero no guardar cambios.';
+    return;
+  }
+
+  aviso.hidden = false;
+  aviso.textContent =
+    '📵 Sin conexión. Viendo datos guardados ' +
+    cache.describirAntiguedad(guardadoEn) + '. No se pueden guardar cambios.';
+}
+
 function actualizarAvisoConexion() {
-  document.getElementById('aviso-sin-conexion').hidden = navigator.onLine;
+  const aviso = document.getElementById('aviso-sin-conexion');
+
+  if (!navigator.onLine) {
+    aviso.hidden = false;
+    return;
+  }
+
+  aviso.hidden = true;
+
+  // Al recuperar la senal se traen los datos frescos: lo que se estaba viendo
+  // podria llevar horas desactualizado.
+  if (usuarioActual) {
+    cargarTodo()
+      .then(dibujarTodo)
+      .catch((error) => console.warn('No se pudo refrescar al recuperar la conexion:', error));
+  }
 }
 window.addEventListener('online', actualizarAvisoConexion);
 window.addEventListener('offline', actualizarAvisoConexion);
@@ -1637,6 +1683,10 @@ async function salir() {
   const boton = document.getElementById('btn-salir');
   boton.disabled = true;
 
+  // Antes que nada: en un telefono compartido, dejar ahi el negocio de quien
+  // acaba de salir seria justo lo que las politicas RLS impiden en el servidor.
+  cache.limpiar();
+
   try {
     await cerrarSesion();
   } catch (error) {
@@ -1683,26 +1733,49 @@ async function arrancar() {
     return;
   }
 
-  // 2. Traer los datos.
-  informarCarga('Cargando tu negocio…');
+  usuarioActual = usuario;
+  mostrarSesion(usuario);
 
-  try {
-    await cargarTodo();
-  } catch (error) {
-    console.error('No se pudieron cargar los datos:', error);
-    informarCarga('No se pudieron cargar tus datos. Revisa tu conexion.', true);
-    return;
+  /** Abre la pestana que pida la direccion, si trae una valida. */
+  const abrirPestanaPedida = () => {
+    const pedida = window.location.hash.slice(1);
+    if(PAGINAS.includes(pedida) && pedida !== 'inicio') showPage(pedida);
+  };
+
+  // 2. Pintar lo que haya en cache. Abre al instante y, sobre todo, abre
+  //    aunque no haya conexion: el envoltorio ya lo cacheaba el service
+  //    worker, pero sin esto las seis pantallas salian vacias.
+  const guardado = cache.leer(usuario.id);
+
+  if (guardado) {
+    data = guardado.datos;
+    dibujarTodo();
+    abrirPestanaPedida();
+    pantallaCarga.style.display = 'none';
+  } else {
+    informarCarga('Cargando tu negocio…');
   }
 
-  // 3. Dibujar y quitar la pantalla de carga.
-  mostrarSesion(usuario);
-  dibujarTodo();
+  // 3. Pedir lo actual por detras y refrescar.
+  try {
+    await cargarTodo();
+    dibujarTodo();
+    if (!guardado) abrirPestanaPedida();
+    pantallaCarga.style.display = 'none';
+    mostrarAvisoCache(null);
+  } catch (error) {
+    console.error('No se pudieron cargar los datos:', error);
 
-  // Abre la pestana que indique la direccion, si trae una valida. Es lo que
-  // hace enlazables /app#clientes o /app#recordatorios.
-  const pedida = window.location.hash.slice(1);
-  if(PAGINAS.includes(pedida) && pedida !== 'inicio') showPage(pedida);
-  pantallaCarga.style.display = 'none';
+    if (!guardado) {
+      // Sin cache no hay nada que ensenar: mas vale decirlo que dejar la
+      // aplicacion en blanco aparentando un negocio sin ventas.
+      informarCarga('No se pudieron cargar tus datos. Revisa tu conexion.', true);
+      return;
+    }
+
+    // Con cache se sigue trabajando, avisando de que no es lo mas reciente.
+    mostrarAvisoCache(guardado.guardadoEn);
+  }
 
   setInterval(checkRecordatorios, CADA_30_SEGUNDOS);
   checkRecordatorios();
