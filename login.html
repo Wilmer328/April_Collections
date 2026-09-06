@@ -230,8 +230,40 @@
     el.estado.textContent = '';
   }
 
+  /**
+   * Devuelve a donde el visitante intentaba ir antes de que se le pidiera
+   * iniciar sesion, o null si venia directo al login.
+   *
+   * Solo se aceptan rutas propias que empiecen por una sola barra: sin esa
+   * comprobacion, un enlace preparado podria dejar guardado un destino externo
+   * y usar esta pagina para redirigir a otro sitio tras autenticarse.
+   *
+   * @returns {string | null}
+   */
+  function destinoGuardado() {
+    try {
+      const destino = sessionStorage.getItem('ac_destino');
+      sessionStorage.removeItem('ac_destino');
+
+      const esRutaPropia = destino && destino.startsWith('/') && !destino.startsWith('//');
+
+      return esRutaPropia ? destino : null;
+    } catch {
+      return null;
+    }
+  }
+
   /** Pinta los datos del usuario autenticado. */
   function mostrarSesion(usuario) {
+    // Si venia de una pantalla concreta, se le devuelve alli directamente en
+    // lugar de obligarle a pulsar «Entrar a la aplicacion».
+    const destino = destinoGuardado();
+
+    if (destino) {
+      window.location.replace(destino);
+      return;
+    }
+
     el.nombre.textContent = usuario.nombre;
     el.email.textContent = usuario.email;
 

@@ -1671,6 +1671,13 @@ async function arrancar() {
   }
 
   if (!usuario) {
+    // Se guarda a donde iba para volver ahi tras iniciar sesion. Sin esto,
+    // quien abre /app#recordatorios sin sesion acaba en Inicio y tiene que
+    // buscar la pantalla otra vez.
+    try {
+      sessionStorage.setItem('ac_destino', window.location.pathname + window.location.hash);
+    } catch { /* Si el navegador no deja guardar, solo se pierde la comodidad. */ }
+
     // replace y no href: el boton atras no debe devolver a la aplicacion.
     window.location.replace('./login.html');
     return;
