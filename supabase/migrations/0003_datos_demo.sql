@@ -22,7 +22,7 @@ declare
   -- ┌──────────────────────────────────────────────────────────────────────┐
   -- │  CAMBIA ESTE CORREO POR EL DE TU CUENTA DEMO                         │
   -- └──────────────────────────────────────────────────────────────────────┘
-  correo_demo constant text := 'wilmer415sanchez@gmail.com';
+ correo_demo constant text := 'demo@jsanchez.site';
 
   duenio uuid;
 

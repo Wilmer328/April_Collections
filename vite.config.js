@@ -6,7 +6,16 @@ const desdeRaiz = (ruta) => fileURLToPath(new URL(ruta, import.meta.url));
 
 export default defineConfig({
   build: {
-    // El sitio tiene tres páginas independientes, no una SPA. Cada una es un
+    // Objetivo de CSS deliberadamente conservador.
+    //
+    // Por defecto Vite reescribe `@media (max-width: 768px)` a la sintaxis de
+    // rangos `@media (width <= 768px)`, que solo entienden los navegadores
+    // desde Chrome 104 y Safari 16.4. En un teléfono con Android antiguo —que
+    // es donde se usa esta aplicación— esas reglas se ignoran enteras y la
+    // pantalla se ve sin adaptar.
+    cssTarget: 'chrome87',
+
+    // El sitio tiene cuatro páginas independientes, no una SPA. Cada una es un
     // punto de entrada propio: Vite las procesa y las publica por separado.
     rollupOptions: {
       input: {

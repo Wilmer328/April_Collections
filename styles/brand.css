@@ -157,3 +157,38 @@ a:focus-visible { outline: 3px solid var(--rose); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ── Adaptacion a pantallas pequenas ──────────────────────────────────────
+   Los puntos de corte viven aqui, en la hoja compartida, y no repartidos en
+   los <style> de cada pagina: asi las tres se comportan igual al estrecharse
+   y no hay que acordarse de repetirlos.
+
+   El telefono es el dispositivo principal: la duena del negocio administra
+   sus ventas desde el movil, muchas veces de pie en casa de una clienta. */
+
+/* Tabletas y telefonos apaisados. */
+@media (max-width: 768px) {
+  .ac-btn {
+    padding: 12px 20px;
+    font-size: var(--text-sm);
+  }
+}
+
+/* Telefonos. */
+@media (max-width: 560px) {
+  body.ac-page { line-height: 1.6; }
+
+  .ac-brand__name { font-size: var(--text-base); }
+  .ac-brand__icon { width: 28px; height: 28px; font-size: 14px; }
+
+  /* Los botones pasan a ocupar todo el ancho: son mas faciles de acertar con
+     el pulgar que dos botones estrechos uno al lado del otro. */
+  .ac-btn { width: 100%; }
+
+  .ac-note { font-size: var(--text-xs); padding: 12px 14px; }
+}
+
+/* Telefonos estrechos. */
+@media (max-width: 380px) {
+  .ac-brand__name span { display: none; }
+}

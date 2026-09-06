@@ -54,5 +54,42 @@ export async function getSupabaseClient() {
     },
   });
 
+  sincronizarMarcaDeSesion(cachedClient);
+
   return cachedClient;
+}
+
+/** Nombre de la marca que lee el middleware para proteger /panel. */
+const COOKIE_SESION = 'ac_sesion';
+
+/** Duración de la marca. Se renueva en cada cambio de sesión. */
+const HORAS_DE_VIGENCIA = 12;
+
+/**
+ * Mantiene una cookie que indica si hay sesión abierta.
+ *
+ * El middleware del servidor no puede leer el token: Supabase lo guarda en
+ * localStorage, que solo existe en el navegador. Esta cookie es la señal
+ * mínima que sí viaja en la petición.
+ *
+ * NO es una credencial: no lleva el token ni nada firmado, y por eso se marca
+ * SameSite=Lax y sin HttpOnly —tiene que poder escribirla el propio cliente—.
+ * Solo sirve para que el servidor no entregue el documento del área privada a
+ * quien claramente no ha iniciado sesión. Los datos los sigue protegiendo RLS.
+ *
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ */
+function sincronizarMarcaDeSesion(supabase) {
+  const escribir = (haySesion) => {
+    const seguro = window.location.protocol === 'https:' ? '; Secure' : '';
+    const vigencia = haySesion ? `; Max-Age=${HORAS_DE_VIGENCIA * 3600}` : '; Max-Age=0';
+
+    document.cookie = `${COOKIE_SESION}=${haySesion ? '1' : '0'}; Path=/; SameSite=Lax${seguro}${vigencia}`;
+  };
+
+  supabase.auth.onAuthStateChange((_evento, sesion) => escribir(Boolean(sesion)));
+
+  // El primer aviso de onAuthStateChange llega de forma asíncrona; se consulta
+  // la sesión de entrada para no dejar la cookie desfasada mientras tanto.
+  supabase.auth.getSession().then(({ data }) => escribir(Boolean(data.session)));
 }
