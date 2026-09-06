@@ -13,9 +13,9 @@ aplicación y de dónde salen.
 | Variable | De dónde sale | Obligatoria |
 |---|---|---|
 | `VITE_SUPABASE_URL` | Supabase → *Project Settings → API → Project URL* | Sí |
-| `VITE_SUPABASE_ANON_KEY` | Supabase → *Project Settings → API → anon / public* | Sí |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase → *Project Settings → API Keys → publishable* | Sí |
 
-### Sobre la anon key
+### Sobre la clave pública
 
 Es **pública por diseño**. Viaja al navegador en cualquier aplicación Supabase
 y no es un secreto: la protección real la dan las políticas RLS, que se evalúan
@@ -37,7 +37,7 @@ reseteo de la cuenta demo).
 ## Desarrollo local
 
 1. Copia `env.ejemplo` como `.env` — está en `.gitignore`.
-2. Rellena `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
+2. Rellena `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`.
 3. `npm run dev`. Vite las sustituye al compilar.
 
 ## Producción

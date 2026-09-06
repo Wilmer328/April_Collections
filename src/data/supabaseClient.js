@@ -10,7 +10,7 @@
  * landing— no descarguen la librería.
  */
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY, isSupabaseConfigured } from '../config/env.js';
+import { SUPABASE_URL, SUPABASE_KEY, isSupabaseConfigured } from '../config/env.js';
 
 /** @type {import('@supabase/supabase-js').SupabaseClient | null} */
 let cachedClient = null;
@@ -22,7 +22,7 @@ let cachedClient = null;
  */
 export class SupabaseNotConfiguredError extends Error {
   constructor() {
-    super('Supabase no está configurado: falta SUPABASE_URL o SUPABASE_ANON_KEY.');
+    super('Supabase no está configurado: falta la URL o la clave pública del proyecto.');
     this.name = 'SupabaseNotConfiguredError';
   }
 }
@@ -44,7 +44,7 @@ export async function getSupabaseClient() {
 
   const { createClient } = await import('@supabase/supabase-js');
 
-  cachedClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  cachedClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: {
       // Mantiene la sesión entre recargas y la renueva sola antes de expirar.
       persistSession: true,

@@ -36,9 +36,18 @@ function leer(nombre, valorDeCompilacion) {
 
 export const SUPABASE_URL = leer('SUPABASE_URL', import.meta.env?.VITE_SUPABASE_URL);
 
-export const SUPABASE_ANON_KEY = leer(
-  'SUPABASE_ANON_KEY',
-  import.meta.env?.VITE_SUPABASE_ANON_KEY,
+/**
+ * Clave pública del proyecto.
+ *
+ * Supabase renombró esta credencial: los proyectos nuevos la llaman
+ * `publishable key` y los antiguos `anon key`. Ocupan el mismo lugar al crear
+ * el cliente, así que se acepta cualquiera de las dos y se prefiere la nueva.
+ * Aceptar ambas evita que el despliegue se rompa según la antigüedad del
+ * proyecto de Supabase que se conecte.
+ */
+export const SUPABASE_KEY = leer(
+  'SUPABASE_KEY',
+  import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env?.VITE_SUPABASE_ANON_KEY,
 );
 
 /**
@@ -50,5 +59,5 @@ export const SUPABASE_ANON_KEY = leer(
  * @returns {boolean}
  */
 export function isSupabaseConfigured() {
-  return SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.length > 0;
+  return SUPABASE_URL.length > 0 && SUPABASE_KEY.length > 0;
 }
