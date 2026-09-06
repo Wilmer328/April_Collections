@@ -84,6 +84,23 @@ Manual, la ejecuta el autor:
 3. Poner ese correo en la constante `correo_demo` de
    `supabase/migrations/0003_datos_demo.sql` y ejecutar el guion.
 
+## Nota posterior — control de acceso
+
+Al probar en producción se detectó que **cualquier cuenta de Google podía
+registrarse**. No había fuga de datos —las políticas RLS impiden ver lo ajeno—
+pero se creaban cuentas que nadie había autorizado, y April Collections es la
+herramienta privada de un negocio familiar, no un servicio con registro
+público.
+
+Se resolvió en `supabase/migrations/0004_control_de_acceso.sql` con una lista
+de correos autorizados y un disparador `before insert` sobre `auth.users` que
+rechaza el alta de cualquier otro.
+
+Va en la base y no en la aplicación por la misma razón que se repite en todo
+el proyecto: un filtro en el navegador se salta desactivando JavaScript o
+llamando a la API directamente. El disparador se ejecuta dentro de Postgres,
+en la misma transacción que crearía el usuario.
+
 ## Referencias
 
 - Siembra: `supabase/migrations/0003_datos_demo.sql`

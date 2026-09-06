@@ -222,6 +222,31 @@
     return descripcion;
   }
 
+  /**
+   * Traduce el error que devuelve Supabase a algo que se entienda.
+   *
+   * Cuando el disparador de la base rechaza una cuenta no autorizada, GoTrue
+   * envuelve la excepcion y devuelve "Database error saving new user", que no
+   * le dice nada a quien lo lee. El caso real es que esa cuenta no tiene
+   * acceso, y eso es lo que hay que mostrar.
+   *
+   * @param {string} mensaje
+   * @returns {string}
+   */
+  function traducirError(mensaje) {
+    const esRechazoDeAcceso =
+      /database error saving new user/i.test(mensaje) ||
+      /no tiene acceso/i.test(mensaje) ||
+      /insufficient_privilege/i.test(mensaje);
+
+    if (esRechazoDeAcceso) {
+      return 'Esta cuenta no tiene acceso a April Collections. La aplicación es privada '
+        + 'y solo pueden entrar las cuentas autorizadas por la dueña del negocio.';
+    }
+
+    return mensaje;
+  }
+
   async function manejarClicGoogle() {
     el.btnGoogle.disabled = true;
     el.btnGoogleTexto.textContent = 'Redirigiendo a Google…';
@@ -268,7 +293,7 @@
     const errorRetorno = leerErrorDeRetorno();
 
     if (errorRetorno) {
-      mostrarEstado(errorRetorno, 'danger');
+      mostrarEstado(traducirError(errorRetorno), 'danger');
     }
 
     try {
