@@ -1,0 +1,155 @@
+{
+  "generado_at": "2026-09-06T22:22:49Z",
+  "motor": "postgres",
+  "tablas": [
+    {
+      "nombre": "abonos",
+      "filas": 16,
+      "columnas": [
+        { "nombre": "id", "tipo": "uuid", "pk": true, "nulo": false },
+        { "nombre": "venta_id", "tipo": "uuid", "pk": false, "nulo": false },
+        { "nombre": "monto_centavos", "tipo": "bigint", "pk": false, "nulo": false },
+        { "nombre": "fecha", "tipo": "date", "pk": false, "nulo": false },
+        { "nombre": "creado_en", "tipo": "timestamp with time zone", "pk": false, "nulo": false }
+      ],
+      "indices": ["abonos_pkey", "abonos_venta_idx"],
+      "relaciones": [{ "columna": "venta_id", "referencia": "ventas.id" }],
+      "politicas_rls": ["abonos de ventas propias"]
+    },
+    {
+      "nombre": "accesos_autorizados",
+      "filas": 3,
+      "columnas": [
+        { "nombre": "correo", "tipo": "text", "pk": true, "nulo": false },
+        { "nombre": "motivo", "tipo": "text", "pk": false, "nulo": false },
+        { "nombre": "creado_en", "tipo": "timestamp with time zone", "pk": false, "nulo": false }
+      ],
+      "indices": ["accesos_autorizados_pkey"],
+      "relaciones": [],
+      "politicas_rls": []
+    },
+    {
+      "nombre": "categorias",
+      "filas": 10,
+      "columnas": [
+        { "nombre": "id", "tipo": "uuid", "pk": true, "nulo": false },
+        { "nombre": "owner_id", "tipo": "uuid", "pk": false, "nulo": false },
+        { "nombre": "nombre", "tipo": "text", "pk": false, "nulo": false },
+        { "nombre": "creado_en", "tipo": "timestamp with time zone", "pk": false, "nulo": false }
+      ],
+      "indices": ["categorias_owner_nombre_idx", "categorias_pkey"],
+      "relaciones": [{ "columna": "owner_id", "referencia": "users.id" }],
+      "politicas_rls": ["categorias propias"]
+    },
+    {
+      "nombre": "clientes",
+      "filas": 12,
+      "columnas": [
+        { "nombre": "id", "tipo": "uuid", "pk": true, "nulo": false },
+        { "nombre": "owner_id", "tipo": "uuid", "pk": false, "nulo": false },
+        { "nombre": "nombre", "tipo": "text", "pk": false, "nulo": false },
+        { "nombre": "dni", "tipo": "text", "pk": false, "nulo": true },
+        { "nombre": "telefono", "tipo": "text", "pk": false, "nulo": true },
+        { "nombre": "creado_en", "tipo": "timestamp with time zone", "pk": false, "nulo": false }
+      ],
+      "indices": ["clientes_owner_dni_idx", "clientes_owner_idx", "clientes_pkey"],
+      "relaciones": [{ "columna": "owner_id", "referencia": "users.id" }],
+      "politicas_rls": ["clientes propios"]
+    },
+    {
+      "nombre": "perfiles",
+      "filas": 1,
+      "columnas": [
+        { "nombre": "id", "tipo": "uuid", "pk": true, "nulo": false },
+        { "nombre": "correo", "tipo": "text", "pk": false, "nulo": false },
+        { "nombre": "nombre", "tipo": "text", "pk": false, "nulo": true },
+        { "nombre": "creado_en", "tipo": "timestamp with time zone", "pk": false, "nulo": false }
+      ],
+      "indices": ["perfiles_pkey"],
+      "relaciones": [{ "columna": "id", "referencia": "users.id" }],
+      "politicas_rls": [
+        "perfil propio: actualizar",
+        "perfil propio: crear",
+        "perfil propio: leer"
+      ]
+    },
+    {
+      "nombre": "productos",
+      "filas": 20,
+      "columnas": [
+        { "nombre": "id", "tipo": "uuid", "pk": true, "nulo": false },
+        { "nombre": "owner_id", "tipo": "uuid", "pk": false, "nulo": false },
+        { "nombre": "nombre", "tipo": "text", "pk": false, "nulo": false },
+        { "nombre": "categoria", "tipo": "text", "pk": false, "nulo": false },
+        { "nombre": "costo_centavos", "tipo": "bigint", "pk": false, "nulo": false },
+        { "nombre": "precio_centavos", "tipo": "bigint", "pk": false, "nulo": false },
+        { "nombre": "stock", "tipo": "integer", "pk": false, "nulo": false },
+        { "nombre": "creado_en", "tipo": "timestamp with time zone", "pk": false, "nulo": false }
+      ],
+      "indices": ["productos_owner_idx", "productos_pkey"],
+      "relaciones": [{ "columna": "owner_id", "referencia": "users.id" }],
+      "politicas_rls": ["productos propios"]
+    },
+    {
+      "nombre": "recordatorios",
+      "filas": 10,
+      "columnas": [
+        { "nombre": "id", "tipo": "uuid", "pk": true, "nulo": false },
+        { "nombre": "owner_id", "tipo": "uuid", "pk": false, "nulo": false },
+        { "nombre": "cliente_id", "tipo": "uuid", "pk": false, "nulo": false },
+        { "nombre": "venta_id", "tipo": "uuid", "pk": false, "nulo": true },
+        { "nombre": "fecha", "tipo": "date", "pk": false, "nulo": false },
+        { "nombre": "hora", "tipo": "time without time zone", "pk": false, "nulo": false },
+        { "nombre": "nota", "tipo": "text", "pk": false, "nulo": true },
+        { "nombre": "estado", "tipo": "text", "pk": false, "nulo": false },
+        { "nombre": "avisado_en", "tipo": "timestamp with time zone", "pk": false, "nulo": true },
+        { "nombre": "visto", "tipo": "boolean", "pk": false, "nulo": false },
+        { "nombre": "creado_en", "tipo": "timestamp with time zone", "pk": false, "nulo": false }
+      ],
+      "indices": ["recordatorios_owner_fecha_idx", "recordatorios_pkey"],
+      "relaciones": [
+        { "columna": "cliente_id", "referencia": "clientes.id" },
+        { "columna": "owner_id", "referencia": "users.id" },
+        { "columna": "venta_id", "referencia": "ventas.id" }
+      ],
+      "politicas_rls": ["recordatorios propios"]
+    },
+    {
+      "nombre": "venta_items",
+      "filas": 22,
+      "columnas": [
+        { "nombre": "id", "tipo": "uuid", "pk": true, "nulo": false },
+        { "nombre": "venta_id", "tipo": "uuid", "pk": false, "nulo": false },
+        { "nombre": "producto_id", "tipo": "uuid", "pk": false, "nulo": true },
+        { "nombre": "nombre", "tipo": "text", "pk": false, "nulo": false },
+        { "nombre": "precio_centavos", "tipo": "bigint", "pk": false, "nulo": false },
+        { "nombre": "costo_centavos", "tipo": "bigint", "pk": false, "nulo": false },
+        { "nombre": "cantidad", "tipo": "integer", "pk": false, "nulo": false }
+      ],
+      "indices": ["venta_items_pkey", "venta_items_venta_idx"],
+      "relaciones": [
+        { "columna": "producto_id", "referencia": "productos.id" },
+        { "columna": "venta_id", "referencia": "ventas.id" }
+      ],
+      "politicas_rls": ["lineas de ventas propias"]
+    },
+    {
+      "nombre": "ventas",
+      "filas": 13,
+      "columnas": [
+        { "nombre": "id", "tipo": "uuid", "pk": true, "nulo": false },
+        { "nombre": "owner_id", "tipo": "uuid", "pk": false, "nulo": false },
+        { "nombre": "cliente_id", "tipo": "uuid", "pk": false, "nulo": false },
+        { "nombre": "fecha", "tipo": "date", "pk": false, "nulo": false },
+        { "nombre": "tipo_pago", "tipo": "text", "pk": false, "nulo": false },
+        { "nombre": "creado_en", "tipo": "timestamp with time zone", "pk": false, "nulo": false }
+      ],
+      "indices": ["ventas_cliente_idx", "ventas_owner_fecha_idx", "ventas_pkey"],
+      "relaciones": [
+        { "columna": "cliente_id", "referencia": "clientes.id" },
+        { "columna": "owner_id", "referencia": "users.id" }
+      ],
+      "politicas_rls": ["ventas propias"]
+    }
+  ]
+}
