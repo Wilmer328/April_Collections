@@ -30,15 +30,6 @@
 <meta name="theme-color" content="#9e3f52">
 <link rel="stylesheet" href="./styles/brand.css">
 <style>
-  /*
-   * El contenido arranca OCULTO y solo se muestra si hay sesión verificada.
-   * Es deliberado: si el JavaScript de comprobación no llegara a ejecutarse,
-   * la página se queda en blanco en vez de enseñar datos del negocio. El modo
-   * de fallo correcto de un área privada es no mostrar nada.
-   */
-  #contenido { display: none; }
-  #contenido.verificado { display: block; }
-
   .panel {
     max-width: 720px;
     margin: 0 auto;
@@ -96,31 +87,12 @@
   <p>Comprobando tu sesión…</p>
 </div>
 
-<!-- Oculto hasta que la sesión esté verificada. -->
-<main class="panel" id="contenido">
-  <div class="panel__cabecera">
-    <div>
-      <h1 class="panel__titulo">Panel privado</h1>
-      <p class="panel__lead">Datos de tu cuenta y del despliegue.</p>
-    </div>
-    <a class="ac-btn ac-btn--ghost" href="./app.html">← Ir a la aplicación</a>
-  </div>
-
-  <section class="tarjeta">
-    <h2 class="tarjeta__titulo">Tu cuenta</h2>
-    <div class="dato"><span class="dato__clave">Nombre</span><span class="dato__valor" id="dato-nombre"></span></div>
-    <div class="dato"><span class="dato__clave">Correo</span><span class="dato__valor" id="dato-correo"></span></div>
-    <div class="dato"><span class="dato__clave">Identificador</span><span class="dato__valor" id="dato-id"></span></div>
-    <div class="acciones">
-      <button class="ac-btn ac-btn--ghost" id="btn-salir" type="button">Cerrar sesión</button>
-    </div>
-  </section>
-
-  <section class="tarjeta">
-    <h2 class="tarjeta__titulo">Estado del servicio</h2>
-    <div id="estado-servicio" class="ac-note">Consultando…</div>
-  </section>
-</main>
+<!-- El contenido privado NO se sirve en el HTML. Se construye en JavaScript
+     despues de verificar la sesion, asi la respuesta a una peticion sin
+     sesion no contiene ni las etiquetas del panel. Ocultarlo con CSS no
+     bastaba: el marcado viajaba igual y cualquiera podia leerlo viendo el
+     codigo fuente o con una peticion sin navegador. -->
+<main class="panel" id="contenido" hidden></main>
 
 <script type="module">
   import { isSupabaseConfigured } from './src/config/env.js';
@@ -128,15 +100,8 @@
 
   const LOGIN = './login.html';
 
-  const el = {
-    cargando: document.getElementById('cargando'),
-    contenido: document.getElementById('contenido'),
-    nombre: document.getElementById('dato-nombre'),
-    correo: document.getElementById('dato-correo'),
-    id: document.getElementById('dato-id'),
-    servicio: document.getElementById('estado-servicio'),
-    salir: document.getElementById('btn-salir'),
-  };
+  const cargando = document.getElementById('cargando');
+  const contenido = document.getElementById('contenido');
 
   /**
    * Saca al visitante del área privada.
@@ -148,28 +113,86 @@
     window.location.replace(LOGIN);
   }
 
-  /** Muestra el panel una vez comprobada la sesión. */
-  function mostrar(usuario) {
-    el.nombre.textContent = usuario.nombre;
-    el.correo.textContent = usuario.email;
-    el.id.textContent = usuario.id;
+  /** Crea un elemento con sus clases y su texto ya puestos. */
+  function crear(etiqueta, clases, texto) {
+    const nodo = document.createElement(etiqueta);
+    if (clases) nodo.className = clases;
+    // textContent y nunca innerHTML: el nombre y el correo vienen del
+    // proveedor de identidad y no deben poder inyectar marcado.
+    if (texto !== undefined) nodo.textContent = texto;
+    return nodo;
+  }
 
-    el.cargando.hidden = true;
-    el.contenido.classList.add('verificado');
+  /** Fila de dato con su etiqueta y su valor. */
+  function fila(clave, valor) {
+    const contenedor = crear('div', 'dato');
+    contenedor.append(crear('span', 'dato__clave', clave), crear('span', 'dato__valor', valor));
+    return contenedor;
+  }
+
+  /**
+   * Construye el panel en memoria y lo inserta.
+   *
+   * Todo el marcado privado se crea aquí y no viene en el HTML: una petición
+   * sin sesión recibe una página sin rastro de este contenido.
+   */
+  function construirPanel(usuario) {
+    const cabecera = crear('div', 'panel__cabecera');
+    const titulos = document.createElement('div');
+    titulos.append(
+      crear('h1', 'panel__titulo', 'Panel privado'),
+      crear('p', 'panel__lead', 'Datos de tu cuenta y del despliegue.'),
+    );
+
+    const irApp = crear('a', 'ac-btn ac-btn--ghost', '← Ir a la aplicación');
+    irApp.href = './app.html';
+    cabecera.append(titulos, irApp);
+
+    const cuenta = crear('section', 'tarjeta');
+    cuenta.append(
+      crear('h2', 'tarjeta__titulo', 'Tu cuenta'),
+      fila('Nombre', usuario.nombre),
+      fila('Correo', usuario.email),
+      fila('Identificador', usuario.id),
+    );
+
+    const acciones = crear('div', 'acciones');
+    const salir = crear('button', 'ac-btn ac-btn--ghost', 'Cerrar sesión');
+    salir.type = 'button';
+    salir.addEventListener('click', async () => {
+      salir.disabled = true;
+      try {
+        await cerrarSesion();
+      } finally {
+        expulsar();
+      }
+    });
+    acciones.append(salir);
+    cuenta.append(acciones);
+
+    const servicio = crear('section', 'tarjeta');
+    const estado = crear('div', 'ac-note', 'Consultando…');
+    servicio.append(crear('h2', 'tarjeta__titulo', 'Estado del servicio'), estado);
+
+    contenido.replaceChildren(cabecera, cuenta, servicio);
+    contenido.hidden = false;
+    cargando.hidden = true;
+
+    consultarServicio(estado);
   }
 
   /** Consulta el healthcheck y resume el estado del despliegue. */
-  async function consultarServicio() {
+  async function consultarServicio(destino) {
     try {
       const respuesta = await fetch('/api/health', { cache: 'no-store' });
       const datos = await respuesta.json();
 
-      el.servicio.className = 'ac-note ac-note--success';
-      el.servicio.textContent =
+      destino.className = 'ac-note ac-note--success';
+      destino.textContent =
         `Servicio ${datos.estado} · entorno ${datos.despliegue.entorno} · versión ${datos.version}`;
     } catch {
-      el.servicio.className = 'ac-note ac-note--warning';
-      el.servicio.textContent = 'No se pudo consultar el estado del servicio.';
+      destino.className = 'ac-note ac-note--warning';
+      destino.textContent = 'No se pudo consultar el estado del servicio.';
     }
   }
 
@@ -190,20 +213,11 @@
         return;
       }
 
-      mostrar(usuario);
-      consultarServicio();
+      construirPanel(usuario);
     } catch {
       expulsar();
     }
   }
-
-  el.salir.addEventListener('click', async () => {
-    try {
-      await cerrarSesion();
-    } finally {
-      expulsar();
-    }
-  });
 
   iniciar();
 </script>

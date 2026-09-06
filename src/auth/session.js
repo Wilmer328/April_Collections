@@ -61,6 +61,35 @@ export async function iniciarSesionConGoogle(redirectTo) {
 }
 
 /**
+ * Inicia sesión con correo y contraseña.
+ *
+ * Existe solo para la cuenta de demostración del curso: la usuaria real entra
+ * con Google. Ver ADR-0003.
+ *
+ * @param {string} correo
+ * @param {string} contrasena
+ * @returns {Promise<UsuarioSesion>}
+ * @throws {Error} si las credenciales no son válidas.
+ */
+export async function iniciarSesionConCorreo(correo, contrasena) {
+  const supabase = await getSupabaseClient();
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: correo.trim(),
+    password: contrasena,
+  });
+
+  if (error) {
+    // Supabase responde «Invalid login credentials» sin distinguir si falló el
+    // correo o la contraseña. Es deliberado por su parte y aquí se respeta: si
+    // se distinguiera, se podría averiguar qué correos tienen cuenta.
+    throw new Error('Correo o contraseña incorrectos.');
+  }
+
+  return mapUsuario(data.user);
+}
+
+/**
  * Lee la sesión activa, si existe.
  *
  * @returns {Promise<UsuarioSesion | null>}

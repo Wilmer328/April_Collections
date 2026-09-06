@@ -100,6 +100,27 @@
   .login-footer { font-size: var(--text-sm); color: var(--muted); }
   .login-footer a { color: var(--rose-dark); }
 
+  .separador {
+    display: flex; align-items: center; gap: 10px;
+    margin: 20px 0 16px; color: var(--muted); font-size: var(--text-xs);
+  }
+  .separador::before, .separador::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  .campo { text-align: left; margin-bottom: 12px; }
+  .campo label {
+    display: block; font-size: var(--text-xs); font-weight: 600;
+    color: var(--muted); margin-bottom: 5px;
+  }
+  .campo input {
+    width: 100%; padding: 11px 13px; border: 1.5px solid var(--border);
+    border-radius: 9px; font-family: var(--font-body); font-size: var(--text-base);
+    color: var(--charcoal); background: var(--cream); outline: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .campo input:focus { border-color: var(--rose); background: var(--white); }
+
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -141,6 +162,26 @@
       </svg>
       <span id="btn-google-texto">Continuar con Google</span>
     </button>
+
+    <div class="separador"><span>o con tu cuenta demo</span></div>
+
+    <!-- Formulario real, con method y action, para que funcione tambien si el
+         JavaScript no llegara a cargar: el submit se intercepta abajo. -->
+    <form id="form-correo" novalidate>
+      <div class="campo">
+        <label for="correo">Correo</label>
+        <input type="email" id="correo" name="correo" autocomplete="username"
+               required placeholder="demo@ejemplo.com">
+      </div>
+      <div class="campo">
+        <label for="contrasena">Contraseña</label>
+        <input type="password" id="contrasena" name="contrasena"
+               autocomplete="current-password" required placeholder="••••••••">
+      </div>
+      <button class="ac-btn ac-btn--primary" id="btn-correo" type="submit" style="width:100%">
+        Entrar
+      </button>
+    </form>
   </div>
 
   <div id="estado" class="login-card__status" role="status" aria-live="polite"></div>
@@ -152,7 +193,8 @@
 
 <script type="module">
   import { isSupabaseConfigured } from './src/config/env.js';
-  import { iniciarSesionConGoogle, obtenerUsuarioActual, cerrarSesion } from './src/auth/session.js';
+  import { iniciarSesionConGoogle, iniciarSesionConCorreo, obtenerUsuarioActual,
+           cerrarSesion } from './src/auth/session.js';
 
   const el = {
     activa: document.getElementById('sesion-activa'),
@@ -161,6 +203,10 @@
     btnGoogle: document.getElementById('btn-google'),
     btnGoogleTexto: document.getElementById('btn-google-texto'),
     btnSalir: document.getElementById('btn-salir'),
+    formCorreo: document.getElementById('form-correo'),
+    btnCorreo: document.getElementById('btn-correo'),
+    correo: document.getElementById('correo'),
+    contrasena: document.getElementById('contrasena'),
     nombre: document.getElementById('sesion-nombre'),
     email: document.getElementById('sesion-email'),
     avatar: document.getElementById('sesion-avatar'),
@@ -263,6 +309,27 @@
     }
   }
 
+  /** Entrada con correo y contraseña, para la cuenta de demostración. */
+  async function manejarEnvioCorreo(evento) {
+    evento.preventDefault();
+
+    el.btnCorreo.disabled = true;
+    el.btnCorreo.textContent = 'Entrando…';
+    limpiarEstado();
+
+    try {
+      const usuario = await iniciarSesionConCorreo(el.correo.value, el.contrasena.value);
+      mostrarSesion(usuario);
+      // Se limpia la contraseña del formulario en cuanto deja de hacer falta.
+      el.contrasena.value = '';
+    } catch (error) {
+      mostrarEstado(traducirError(error.message), 'danger');
+    } finally {
+      el.btnCorreo.disabled = false;
+      el.btnCorreo.textContent = 'Entrar';
+    }
+  }
+
   async function manejarClicSalir() {
     el.btnSalir.disabled = true;
 
@@ -281,6 +348,7 @@
     if (!isSupabaseConfigured()) {
       mostrarFormularioLogin();
       el.btnGoogle.disabled = true;
+      el.btnCorreo.disabled = true;
       mostrarEstado(
         'Supabase todavía no está configurado en este despliegue, así que el ' +
         'inicio de sesión está deshabilitado. Mientras tanto puedes entrar a la ' +
@@ -313,6 +381,7 @@
   // Sin handlers inline: prepara el terreno para la CSP estricta de la Etapa 7.
   el.btnGoogle.addEventListener('click', manejarClicGoogle);
   el.btnSalir.addEventListener('click', manejarClicSalir);
+  el.formCorreo.addEventListener('submit', manejarEnvioCorreo);
 
   iniciar();
 </script>
