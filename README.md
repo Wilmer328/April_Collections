@@ -43,13 +43,15 @@ el recordatorio asociado se actualizan solos.
 | Área | Estado |
 |---|---|
 | Aplicación funcional | ✅ 6 módulos operativos |
-| Landing y login | ✅ publicados |
-| Capa de dominio con pruebas | ✅ 79 pruebas, 100 % de líneas |
+| Landing, login y portal privado | ✅ publicados en dominio propio |
+| Capa de dominio con pruebas | ✅ 166 pruebas |
 | Build y entorno de pruebas | ✅ Vite + Vitest |
-| Autenticación con Google | ⏳ implementada, falta configurar Supabase |
-| Persistencia en Supabase | ❌ hoy usa `localStorage` |
-| PWA y modo offline | ❌ |
-| CI y SonarCloud | ❌ |
+| Autenticación con Google | ✅ en producción |
+| Persistencia en Supabase | ✅ 9 tablas con RLS |
+| Caché local para trabajar sin conexión | ✅ |
+| PWA instalable y modo offline | ✅ |
+| Integración continua | ✅ GitHub Actions |
+| SonarCloud | ⏳ configuración lista, falta conectarlo |
 
 ## Cómo ejecutarlo
 
@@ -57,7 +59,7 @@ el recordatorio asociado se actualizan solos.
 npm install
 npm run dev          # servidor de desarrollo
 npm run build        # genera dist/
-npm test             # 79 pruebas
+npm test             # 166 pruebas
 npm run test:coverage
 ```
 
@@ -115,8 +117,8 @@ Las decisiones importantes se registran en [docs/adr/](docs/adr/).
 configuración de ningún tipo: los archivos que podrían llevarlos están en
 `.gitignore`.
 
-Para poner en marcha un entorno, copia `config.example.js` como `config.js`
-—ignorado por Git— y rellénalo con los datos de tu proyecto de Supabase.
+Para poner en marcha un entorno, copia `env.ejemplo` como `.env` —ignorado por
+Git— y rellénalo con los datos de tu proyecto de Supabase.
 
 📄 **[docs/configuracion.md](docs/configuracion.md)** explica qué valores hacen
 falta, de dónde se obtienen, cuáles son públicos por diseño y cuáles no pueden
@@ -124,13 +126,18 @@ salir nunca del servidor.
 
 ## Cobertura
 
-La capa de dominio está al 100 % de líneas y funciones. La cobertura global es
-menor porque incluye las capas de UI y autenticación, que todavía no tienen
-pruebas; se reporta así a propósito, en vez de excluirlas para inflar el número.
+Las 166 pruebas cubren la capa de dominio y la caché local. La cobertura global
+es menor porque incluye las capas de UI y de acceso a datos, que no tienen
+pruebas unitarias; se reporta así a propósito, en vez de excluirlas para inflar
+el número.
 
 ## Despliegue
 
-Se publica en Vercel desde la rama `main`.
+Se publica en Vercel desde la rama `main`, protegida por un ruleset que exige
+pull request y pipeline en verde antes de fusionar.
+
+El esquema de la base vive en [`supabase/migrations/`](supabase/migrations/) y
+todas las migraciones son idempotentes.
 
 | Ajuste | Valor |
 |---|---|
