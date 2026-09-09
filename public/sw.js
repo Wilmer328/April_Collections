@@ -102,14 +102,26 @@ self.addEventListener('activate', (evento) => {
  *
  * @param {Request} peticion
  * @param {Response} respuesta
+ * @returns {Promise<void>} termina cuando la copia esta guardada.
  */
-async function guardar(peticion, respuesta) {
+function guardar(peticion, respuesta) {
   if (!respuesta || !respuesta.ok || respuesta.type === 'opaque') {
-    return;
+    return Promise.resolve();
   }
 
-  const cache = await caches.open(CACHE);
-  await cache.put(peticion, respuesta.clone());
+  // El clon se hace AQUI, de forma sincrona, antes de devolver el control.
+  //
+  // Antes se clonaba despues de `await caches.open()`, y para entonces el
+  // navegador ya habia empezado a leer el cuerpo del original —porque la
+  // respuesta se devuelve sin esperar a que termine de guardarse—. Clonar un
+  // cuerpo ya consumido lanza "Response body is already used": no se cacheaba
+  // nada y la consola se llenaba de errores.
+  //
+  // Un Response solo se puede leer una vez. Si se va a usar dos veces, hay que
+  // clonarlo antes de tocarlo.
+  const copia = respuesta.clone();
+
+  return caches.open(CACHE).then((cache) => cache.put(peticion, copia));
 }
 
 /**
@@ -121,7 +133,9 @@ async function guardar(peticion, respuesta) {
 async function responderNavegacion(evento) {
   try {
     const desdeLaRed = await fetch(evento.request);
-    await guardar(evento.request, desdeLaRed);
+    // No se espera a que termine de guardarse: la copia ya esta hecha y la
+    // pagina no tiene por que esperar a que se escriba en disco.
+    evento.waitUntil(guardar(evento.request, desdeLaRed));
     return desdeLaRed;
   } catch {
     // Sin conexión: se devuelve la página guardada, y si esa ruta concreta no

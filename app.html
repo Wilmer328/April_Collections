@@ -508,7 +508,25 @@ let usuarioActual = null;
  * @param {string} exito mensaje si sale bien.
  * @returns {Promise<boolean>} true si se guardo.
  */
-async function guardarEnLaNube(operacion, exito) {
+/**
+ * Escrituras en curso, por clave.
+ *
+ * Impide que una misma operacion se lance dos veces a la vez. Sin esto, tocar
+ * dos veces «Guardar venta» —algo natural cuando la red va lenta y el boton no
+ * responde— creaba DOS ventas y descontaba el stock dos veces.
+ */
+const enCurso = new Set();
+
+async function guardarEnLaNube(operacion, exito, clave = 'general') {
+  // Si esa misma operacion ya esta en marcha, se ignora la repeticion. No se
+  // encola ni se avisa: para quien pulsa, el segundo toque simplemente no
+  // cuenta, que es exactamente lo que espera.
+  if (enCurso.has(clave)) {
+    return false;
+  }
+
+  enCurso.add(clave);
+
   try {
     await operacion();
     // La cache se refresca despues de cada escritura correcta: si no, al abrir
@@ -520,6 +538,10 @@ async function guardarEnLaNube(operacion, exito) {
     console.error('Fallo al guardar:', error);
     mostrarErrorDeGuardado(error);
     return false;
+  } finally {
+    // En finally y no al final del try: si la escritura falla, el boton tiene
+    // que volver a funcionar para poder reintentar.
+    enCurso.delete(clave);
   }
 }
 
@@ -696,7 +718,7 @@ async function registrarAbono(ventaId) {
       }
       window._recIdParaPago = null;
     }
-  }, '✅ Abono registrado: ' + fmt(monto));
+  }, '✅ Abono registrado: ' + fmt(monto), 'abono:' + ventaId);
 
   if(!guardado) return;
 
@@ -718,7 +740,7 @@ async function guardarCliente() {
   const guardado = await guardarEnLaNube(async () => {
     const creada = await repoClientes.crear({ nombre, dni, tel });
     data.clientes.unshift(creada);
-  }, resultado.aviso ? 'ℹ️ ' + resultado.aviso : '✅ Se agrego a ' + nombre);
+  }, resultado.aviso ? 'ℹ️ ' + resultado.aviso : '✅ Se agrego a ' + nombre, 'cliente');
 
   if(!guardado) return;
 
@@ -764,7 +786,7 @@ async function guardarProducto() {
       stock: parseInt(document.getElementById('inv-stock').value||0),
     });
     data.productos.push(creado);
-  }, '✅ Producto agregado: ' + nombre);
+  }, '✅ Producto agregado: ' + nombre, 'producto');
 
   if(!guardado) return;
 
@@ -827,7 +849,7 @@ async function guardarCategoria() {
   const guardado = await guardarEnLaNube(async () => {
     const nombre = await repoCategorias.crear(resultado.nombre);
     data.categorias = agregarCategoria(data.categorias, nombre);
-  }, '✅ Categoría agregada: ' + resultado.nombre);
+  }, '✅ Categoría agregada: ' + resultado.nombre, 'categoria');
 
   if(!guardado) return;
 
@@ -845,7 +867,7 @@ async function borrarCategoria(nombre) {
   const guardado = await guardarEnLaNube(async () => {
     await repoCategorias.eliminar(nombre);
     data.categorias = eliminarCategoria(data.categorias, nombre);
-  }, '🗑️ Categoría eliminada');
+  }, '🗑️ Categoría eliminada', 'categoria:' + nombre);
 
   if(!guardado) return;
 
@@ -907,7 +929,7 @@ async function ajustarStock(id, dir) {
   const guardado = await guardarEnLaNube(async () => {
     await repoProductos.fijarStock(id, nuevo);
     p.stock = nuevo;
-  }, null);
+  }, null, 'stock:' + id);
 
   if(!guardado) return;
 
@@ -930,7 +952,7 @@ async function guardarEdicionProducto(id) {
   const guardado = await guardarEnLaNube(async () => {
     const actualizado = await repoProductos.actualizar(id, cambios);
     Object.assign(p, actualizado);
-  }, '✅ Producto actualizado');
+  }, '✅ Producto actualizado', 'producto:' + id);
 
   if(!guardado) return;
 
@@ -944,7 +966,7 @@ async function eliminarProducto(id) {
   const guardado = await guardarEnLaNube(async () => {
     await repoProductos.eliminar(id);
     data.productos = data.productos.filter(p=>p.id!==id);
-  }, '🗑️ Eliminado');
+  }, '🗑️ Eliminado', 'producto:' + id);
 
   if(guardado) renderInventario(catActual);
 }
@@ -1185,7 +1207,7 @@ async function guardarVenta() {
       await repoProductos.fijarStock(p.id, restante);
       p.stock = restante;
     }
-  }, '✅ Venta guardada: '+fmt(total));
+  }, '✅ Venta guardada: '+fmt(total), 'venta');
 
   if(!guardado) return;
 
@@ -1257,7 +1279,7 @@ async function guardarRecordatorio() {
   const guardado = await guardarEnLaNube(async () => {
     const creado = await repoRecordatorios.crear({ clienteId, ventaId, fecha, hora, nota });
     data.recordatorios.push(creado);
-  }, '🔔 Recordatorio creado para '+(cl?cl.nombre:'')+' el '+fecha);
+  }, '🔔 Recordatorio creado para '+(cl?cl.nombre:'')+' el '+fecha, 'recordatorio');
 
   if(!guardado) return;
 
@@ -1317,7 +1339,7 @@ async function descartarRec(id) {
   const guardado = await guardarEnLaNube(async () => {
     await repoRecordatorios.actualizar(id, { estado: 'descartado' });
     r.estado = 'descartado';
-  }, 'Recordatorio descartado');
+  }, 'Recordatorio descartado', 'recordatorio:' + id);
 
   if(!guardado) return;
 
@@ -1354,7 +1376,7 @@ async function guardarEdicionRec(id) {
   const guardado = await guardarEnLaNube(async () => {
     await repoRecordatorios.actualizar(id, cambios);
     Object.assign(r, cambios);
-  }, '✅ Recordatorio actualizado');
+  }, '✅ Recordatorio actualizado', 'recordatorio:' + id);
 
   if(!guardado) return;
 
