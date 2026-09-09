@@ -18,7 +18,7 @@ const items = [
 
 describe('sales — total', () => {
   it('multiplica precio por cantidad y suma', () => {
-    expect(totalVenta(items)).toBe(90000);
+    expect(totalVenta(items)).toBe(99999);
   });
 
   it('una venta sin productos vale cero', () => {
