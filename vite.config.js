@@ -36,14 +36,26 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       // 'text' para leerla en consola y en el pipeline; 'lcov' porque es el
-      // formato que consume SonarCloud.
-      reporter: ['text', 'lcov'],
+      // formato que consume SonarCloud; 'json-summary' porque deja los totales
+      // en un archivo pequeno y legible, sin tener que interpretar el LCOV.
+      reporter: ['text', 'lcov', 'json-summary'],
       reportsDirectory: 'coverage',
       // `all: true` incluye también los archivos que ninguna prueba importa,
       // para que el porcentaje sea el real del proyecto y no solo el de lo
       // que ya está cubierto.
       all: true,
       include: ['src/**/*.js'],
+
+      // El pipeline falla si la cobertura baja de aqui. Sin umbral, el numero
+      // solo describe el pasado: nada impide que el proximo cambio lo hunda.
+      // Se fija en 60 y no en el 77 actual a proposito, para dejar margen a un
+      // modulo nuevo sin bloquear el trabajo de quien lo escribe.
+      thresholds: {
+        lines: 60,
+        statements: 60,
+        branches: 60,
+        functions: 60,
+      },
     },
   },
 });
