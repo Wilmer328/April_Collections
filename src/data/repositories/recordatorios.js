@@ -6,7 +6,7 @@
  * dispositivo o se recargue la página.
  */
 
-import { tabla, desenvolver, idDelDuenio } from './_comun.js';
+import { tabla, desenvolver, idDelDuenio, idDelNegocio } from './_comun.js';
 
 const TABLA = 'recordatorios';
 
@@ -60,12 +60,14 @@ export async function listar() {
 export async function crear({ clienteId, ventaId = null, fecha, hora = '09:00', nota = '' }) {
   const supabase = await tabla();
   const owner_id = await idDelDuenio();
+  const negocio_id = idDelNegocio();
 
   const fila = desenvolver(
     await supabase
       .from(TABLA)
       .insert({
         owner_id,
+        negocio_id,
         cliente_id: clienteId,
         venta_id: ventaId || null,
         fecha,

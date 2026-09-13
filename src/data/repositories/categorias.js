@@ -6,7 +6,7 @@
  * propio para poder renombrarlas más adelante sin tocar los productos.
  */
 
-import { tabla, desenvolver, idDelDuenio } from './_comun.js';
+import { tabla, desenvolver, idDelDuenio, idDelNegocio } from './_comun.js';
 import { CATEGORIAS_INICIALES } from '../../domain/categories.js';
 
 const TABLA = 'categorias';
@@ -36,9 +36,10 @@ export async function listar() {
 export async function crear(nombre) {
   const supabase = await tabla();
   const owner_id = await idDelDuenio();
+  const negocio_id = idDelNegocio();
 
   const fila = desenvolver(
-    await supabase.from(TABLA).insert({ owner_id, nombre: nombre.trim() }).select().single(),
+    await supabase.from(TABLA).insert({ owner_id, negocio_id, nombre: nombre.trim() }).select().single(),
     'guardar la categoría',
   );
 

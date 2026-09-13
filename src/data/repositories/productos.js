@@ -5,7 +5,7 @@
  * en lempiras. La conversión ocurre en las dos direcciones aquí mismo.
  */
 
-import { tabla, desenvolver, idDelDuenio, aBase, aApp } from './_comun.js';
+import { tabla, desenvolver, idDelDuenio, idDelNegocio, aBase, aApp } from './_comun.js';
 
 const TABLA = 'productos';
 
@@ -53,12 +53,14 @@ export async function listar() {
 export async function crear({ nombre, categoria, costo = 0, precio = 0, stock = 0 }) {
   const supabase = await tabla();
   const owner_id = await idDelDuenio();
+  const negocio_id = idDelNegocio();
 
   const fila = desenvolver(
     await supabase
       .from(TABLA)
       .insert({
         owner_id,
+        negocio_id,
         nombre: nombre.trim(),
         categoria,
         costo_centavos: aBase(costo),

@@ -184,6 +184,14 @@
   <div class="brand">
     <div class="brand-icon">💎</div>
     <div class="brand-name">April <span>Collections</span></div>
+    <!-- Solo aparece para quien pertenece a mas de un negocio. Quien pertenece
+         a uno no ve nada y la cabecera queda igual que siempre. -->
+    <select id="selector-negocio" hidden aria-label="Negocio activo"
+            style="background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.2);
+                   border-radius:7px;padding:4px 8px;font-size:12px;font-family:inherit;cursor:pointer">
+    </select>
+    <span id="etiqueta-negocio" hidden
+          style="font-size:12px;color:rgba(255,255,255,0.55)"></span>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
     <button id="btn-instalar" class="btn btn-sm" type="button" hidden
@@ -465,6 +473,7 @@ import * as repoVentas from './src/data/repositories/ventas.js';
 import * as repoRecordatorios from './src/data/repositories/recordatorios.js';
 import * as repoCategorias from './src/data/repositories/categorias.js';
 import * as cache from './src/data/cache.js';
+import * as repoNegocios from './src/data/repositories/negocios.js';
 
 /**
  * Copia en memoria de los datos del negocio.
@@ -491,11 +500,25 @@ async function cargarTodo() {
   ]);
 
   data = { clientes, productos, ventas, recordatorios, categorias };
-  cache.guardar(usuarioActual?.id, data);
+  cache.guardar(claveCache(), data);
 }
 
-/** Quien tiene la sesion abierta. La cache va atada a su identificador. */
+/** Quien tiene la sesion abierta. */
 let usuarioActual = null;
+
+/**
+ * Clave de la cache local.
+ *
+ * Lleva usuario Y negocio: los datos ya no son de la persona sino del negocio,
+ * asi que quien pertenece a dos tendria mezcladas sus clientas reales con las
+ * inventadas de la demostracion si la clave solo distinguiera la cuenta.
+ *
+ * @returns {string|null} null si aun no hay sesion o negocio.
+ */
+function claveCache() {
+  const negocio = repoNegocios.obtenerActivo();
+  return usuarioActual && negocio ? `${usuarioActual.id}_${negocio.id}` : null;
+}
 /**
  * Ejecuta una escritura contra Supabase informando del resultado.
  *
@@ -531,7 +554,7 @@ async function guardarEnLaNube(operacion, exito, clave = 'general') {
     await operacion();
     // La cache se refresca despues de cada escritura correcta: si no, al abrir
     // sin conexion se veria el estado anterior al ultimo cambio.
-    cache.guardar(usuarioActual?.id, data);
+    cache.guardar(claveCache(), data);
     if (exito) showToast(exito);
     return true;
   } catch (error) {
@@ -1758,6 +1781,30 @@ async function salir() {
   window.location.replace('./login.html');
 }
 
+/**
+ * Muestra en que negocio se esta trabajando.
+ *
+ * Con uno solo basta una etiqueta. Con varios hace falta poder cambiar, que es
+ * el caso de quien administra el negocio real y ademas ensena la demostracion.
+ */
+function mostrarNegocio(negocios) {
+  const activo = repoNegocios.obtenerActivo();
+  const selector = document.getElementById('selector-negocio');
+  const etiqueta = document.getElementById('etiqueta-negocio');
+
+  if (negocios.length > 1) {
+    selector.innerHTML = negocios
+      .map((n) => `<option value="${escaparHtml(n.id)}">${escaparHtml(n.nombre)}</option>`)
+      .join('');
+    selector.value = activo.id;
+    selector.hidden = false;
+    return;
+  }
+
+  etiqueta.textContent = activo.nombre;
+  etiqueta.hidden = false;
+}
+
 /** Dibuja todas las pantallas con los datos ya cargados. */
 function dibujarTodo() {
   renderCategorias();
@@ -1796,6 +1843,34 @@ async function arrancar() {
   usuarioActual = usuario;
   mostrarSesion(usuario);
 
+  // Antes de pedir datos hay que saber de que negocio son. Sin esto las
+  // politicas RLS no devolverian ninguna fila y la pantalla saldria vacia sin
+  // explicar por que.
+  informarCarga('Comprobando tus accesos…');
+
+  let negocios = [];
+
+  try {
+    negocios = await repoNegocios.listarMios();
+  } catch (error) {
+    console.error('No se pudieron cargar los negocios:', error);
+    informarCarga('No se pudieron comprobar tus accesos. Revisa tu conexion.', true);
+    return;
+  }
+
+  if (negocios.length === 0) {
+    // Cuenta valida sin ningun negocio asignado. Decirlo claramente evita que
+    // parezca que el negocio no tiene datos.
+    informarCarga(
+      'Tu cuenta no tiene acceso a ningun negocio todavia. Pide que te anadan como miembro.',
+      true,
+    );
+    return;
+  }
+
+  repoNegocios.elegirInicial(negocios, usuario.id);
+  mostrarNegocio(negocios);
+
   /** Abre la pestana que pida la direccion, si trae una valida. */
   const abrirPestanaPedida = () => {
     const pedida = window.location.hash.slice(1);
@@ -1805,7 +1880,7 @@ async function arrancar() {
   // 2. Pintar lo que haya en cache. Abre al instante y, sobre todo, abre
   //    aunque no haya conexion: el envoltorio ya lo cacheaba el service
   //    worker, pero sin esto las seis pantallas salian vacias.
-  const guardado = cache.leer(usuario.id);
+  const guardado = cache.leer(claveCache());
 
   if (guardado) {
     data = guardado.datos;
@@ -1842,6 +1917,15 @@ async function arrancar() {
 }
 
 document.getElementById('btn-salir').addEventListener('click', salir);
+
+// Al cambiar de negocio se recarga la pagina entera. Es deliberado: rehacer a
+// mano todo el estado en memoria —datos, filtros, pestana abierta, avisos
+// programados— es mucha superficie donde dejarse algo del negocio anterior.
+document.getElementById('selector-negocio').addEventListener('change', (evento) => {
+  const elegido = { id: evento.target.value, nombre: evento.target.selectedOptions[0].textContent, rol: '' };
+  repoNegocios.fijarActivo(elegido, usuarioActual.id);
+  window.location.reload();
+});
 
 document.getElementById('error-guardado-cerrar').addEventListener('click', () => {
   document.getElementById('error-guardado').hidden = true;

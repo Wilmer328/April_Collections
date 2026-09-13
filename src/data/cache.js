@@ -42,10 +42,11 @@ const PREFIJO = 'ac_cache_';
 const CONJUNTOS = ['clientes', 'productos', 'ventas', 'recordatorios', 'categorias'];
 
 /**
- * Clave de almacenamiento de una cuenta.
+ * Clave de almacenamiento.
  *
- * Lleva el identificador dentro a propósito: es lo que impide que la caché de
- * una cuenta se lea desde otra en un dispositivo compartido.
+ * El identificador que recibe combina usuario y negocio: es lo que impide que
+ * la caché de una cuenta se lea desde otra en un dispositivo compartido, y que
+ * los datos de dos negocios del mismo usuario se mezclen entre sí.
  *
  * @param {string} idUsuario
  * @returns {string}
