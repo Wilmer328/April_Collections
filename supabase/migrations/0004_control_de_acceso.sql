@@ -75,7 +75,7 @@ create trigger al_registrarse_exigir_acceso
 -- no afectan al acceso.
 insert into public.accesos_autorizados (correo, motivo) values
   ('wilmer415sanchez@gmail.com', 'Autor del proyecto'),
-  ('daysigomez230@gmail.com',    'Dueña del negocio'),
+  ('aprilcollections2026@gmail.com', 'Dueña del negocio'),
   ('jova889@gmail.com',          'Profesor del curso')
 on conflict (correo) do nothing;
 
