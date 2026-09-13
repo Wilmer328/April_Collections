@@ -21,7 +21,14 @@ Thumbs.db
 .vscode/
 
 # Cobertura de tests
-coverage/
+# Se ignora el informe entero menos los dos archivos de totales: el proyecto
+# los entrega como evidencia, y leerlos del repositorio evita tener que
+# reproducir el pipeline para saber en cuanto esta la cobertura.
+# Nota: se ignora el CONTENIDO (coverage/*) y no la carpeta (coverage/), porque
+# git no entra en un directorio ignorado y las excepciones no se aplicarian.
+coverage/*
+!coverage/coverage-summary.json
+!coverage/lcov.info
 
 # Builds
 dist/
