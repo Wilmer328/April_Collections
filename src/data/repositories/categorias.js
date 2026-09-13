@@ -62,7 +62,7 @@ export async function eliminar(nombre) {
 }
 
 /**
- * Crea las categorías iniciales si la cuenta todavía no tiene ninguna.
+ * Crea las categorías iniciales si el negocio todavía no tiene ninguna.
  *
  * Ocurre la primera vez que alguien entra: sin esto el catálogo arrancaría sin
  * ningún rubro donde clasificar un producto.
@@ -78,11 +78,12 @@ export async function asegurarIniciales() {
 
   const supabase = await tabla();
   const owner_id = await idDelDuenio();
+  const negocio_id = idDelNegocio();
 
   desenvolver(
     await supabase
       .from(TABLA)
-      .insert(CATEGORIAS_INICIALES.map((nombre) => ({ owner_id, nombre }))),
+      .insert(CATEGORIAS_INICIALES.map((nombre) => ({ owner_id, negocio_id, nombre }))),
     'crear las categorías iniciales',
   );
 

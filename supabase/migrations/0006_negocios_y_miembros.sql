@@ -276,7 +276,22 @@ create policy "escribir abonos del negocio"
 -- ── Indicadores ───────────────────────────────────────────────────────────
 -- Se reagrupan por negocio: antes cada persona veia su propio total, que era
 -- justo el problema que esta migracion corrige.
-create or replace view public.ventas_con_saldo as
+--
+-- Se BORRAN antes de recrearlas, y no se usa CREATE OR REPLACE VIEW, porque
+-- esa forma solo admite anadir columnas al final: no puede renombrar ni
+-- reordenar las que ya existen. Aqui owner_id pasa a ser negocio_id en la
+-- misma posicion, y Postgres lo rechaza con
+--   "cannot change name of view column owner_id to negocio_id".
+--
+-- El orden del borrado va de la que depende a la de la que depende: las cuatro
+-- vistas de KPI leen de ventas_con_saldo.
+drop view if exists public.kpi_ventas_por_mes;
+drop view if exists public.kpi_deuda_por_cliente;
+drop view if exists public.kpi_cobrado_por_dia;
+drop view if exists public.kpi_stock_bajo;
+drop view if exists public.ventas_con_saldo;
+
+create view public.ventas_con_saldo as
 select
   v.id,
   v.negocio_id,
@@ -305,7 +320,7 @@ left join (
 
 alter view public.ventas_con_saldo set (security_invoker = on);
 
-create or replace view public.kpi_ventas_por_mes as
+create view public.kpi_ventas_por_mes as
 select
   s.negocio_id,
   date_trunc('month', s.fecha)::date as mes,
@@ -322,7 +337,7 @@ group by s.negocio_id, date_trunc('month', s.fecha);
 
 alter view public.kpi_ventas_por_mes set (security_invoker = on);
 
-create or replace view public.kpi_deuda_por_cliente as
+create view public.kpi_deuda_por_cliente as
 select
   s.negocio_id,
   c.id                      as cliente_id,
@@ -338,7 +353,7 @@ group by s.negocio_id, c.id, c.nombre, c.dni;
 
 alter view public.kpi_deuda_por_cliente set (security_invoker = on);
 
-create or replace view public.kpi_cobrado_por_dia as
+create view public.kpi_cobrado_por_dia as
 select
   v.negocio_id,
   a.fecha,
@@ -350,7 +365,7 @@ group by v.negocio_id, a.fecha;
 
 alter view public.kpi_cobrado_por_dia set (security_invoker = on);
 
-create or replace view public.kpi_stock_bajo as
+create view public.kpi_stock_bajo as
 select
   p.negocio_id,
   p.id as producto_id,
