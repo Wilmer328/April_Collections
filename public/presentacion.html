@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>April Collections — Presentación del producto</title>
+<meta name="description" content="April Collections: sistema de gestión de ventas por catálogo construido para una vendedora real en Honduras. Problema, solución, arquitectura, tecnologías y manual de uso.">
+<style>
+  :root{
+    --cream:#fdf8f4; --white:#fff; --charcoal:#2a2024; --muted:#7a6570;
+    --rose:#c8697a; --rose-dark:#9e3f52; --rose-light:#f5dde1;
+    --gold:#c9a96e; --gold-light:#f5ead8; --border:#e8d8dc;
+    --success:#4a9e7a; --success-light:#d6f0e6;
+    --warning:#c9843e; --danger:#c85a4a;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--cream);color:var(--charcoal);
+    font-family:var(--sans);font-size:16px;line-height:1.65;
+  }
+  .envoltura{max-width:920px;margin:0 auto;padding:0 20px}
+
+  /* ── Portada ────────────────────────────────────────────────────── */
+  header.portada{
+    background:linear-gradient(160deg,#fff 0%,var(--rose-light) 55%,var(--gold-light) 100%);
+    border-bottom:1px solid var(--border);padding:56px 0 44px;text-align:center;
+  }
+  .diamante{font-size:40px;line-height:1;margin-bottom:6px}
+  h1{
+    font-family:var(--serif);font-size:clamp(30px,7vw,50px);
+    margin:0 0 8px;letter-spacing:-.5px;color:var(--rose-dark);font-weight:700;
+  }
+  .lema{font-size:clamp(15px,3.4vw,19px);color:var(--muted);margin:0 auto 26px;max-width:600px}
+  .botonera{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .boton{
+    display:inline-block;padding:11px 20px;border-radius:9px;text-decoration:none;
+    font-weight:600;font-size:14px;border:1.5px solid var(--rose-dark);transition:opacity .15s;
+  }
+  .boton:hover{opacity:.85}
+  .boton.solido{background:var(--rose-dark);color:#fff}
+  .boton.hueco{background:rgba(255,255,255,.75);color:var(--rose-dark)}
+
+  .autoria{
+    margin:26px auto 0;max-width:440px;background:rgba(255,255,255,.8);
+    border:1.5px dashed var(--gold);border-radius:10px;padding:12px 16px;
+  }
+  .autoria .rotulo{font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+  .autoria .codigo{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--rose-dark);word-break:break-all}
+
+  /* ── Secciones ──────────────────────────────────────────────────── */
+  main{padding:8px 0 40px}
+  section{padding:38px 0;border-bottom:1px solid var(--border)}
+  section:last-of-type{border-bottom:0}
+  h2{
+    font-family:var(--serif);font-size:clamp(22px,4.6vw,30px);margin:0 0 4px;
+    color:var(--rose-dark);font-weight:700;
+  }
+  .numero{
+    display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;
+    letter-spacing:1.4px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;
+  }
+  h3{font-size:17px;margin:26px 0 6px;color:var(--charcoal)}
+  p{margin:0 0 14px}
+  strong{color:var(--rose-dark)}
+  ul,ol{margin:0 0 14px;padding-left:22px}
+  li{margin-bottom:7px}
+
+  .destacado{
+    background:var(--white);border-left:4px solid var(--gold);border-radius:0 9px 9px 0;
+    padding:14px 18px;margin:18px 0;font-size:15px;
+  }
+  .destacado p:last-child{margin-bottom:0}
+
+  .rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin:18px 0}
+  .tarjeta{background:var(--white);border:1px solid var(--border);border-radius:11px;padding:16px 18px}
+  .tarjeta h4{margin:0 0 5px;font-size:15px;color:var(--rose-dark)}
+  .tarjeta p{margin:0;font-size:14px;color:var(--muted);line-height:1.55}
+
+  .cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:12px;margin:22px 0}
+  .cifra{background:var(--white);border:1px solid var(--border);border-radius:11px;padding:14px;text-align:center}
+  .cifra b{display:block;font-family:var(--serif);font-size:26px;color:var(--rose-dark);line-height:1.15}
+  .cifra span{font-size:12px;color:var(--muted)}
+
+  .lamina{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin:22px 0}
+  .lamina svg{display:block;width:100%;height:auto}
+  .pie{font-size:12.5px;color:var(--muted);text-align:center;margin:10px 0 0;font-style:italic}
+
+  .marco{overflow-x:auto;margin:18px 0}
+  table{border-collapse:collapse;width:100%;min-width:460px;font-size:14.5px;background:var(--white)}
+  th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top}
+  th{background:var(--rose-light);color:var(--rose-dark);font-weight:700}
+
+  ol.pasos{list-style:none;padding:0;counter-reset:paso}
+  ol.pasos>li{
+    counter-increment:paso;background:var(--white);border:1px solid var(--border);
+    border-radius:11px;padding:14px 16px 14px 56px;position:relative;margin-bottom:11px;
+  }
+  ol.pasos>li::before{
+    content:counter(paso);position:absolute;left:15px;top:14px;
+    width:27px;height:27px;border-radius:50%;background:var(--rose-dark);color:#fff;
+    font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  }
+  ol.pasos b{display:block;color:var(--rose-dark);margin-bottom:2px}
+
+  code{font-family:var(--mono);font-size:.9em;background:var(--gold-light);padding:1px 5px;border-radius:4px}
+  a{color:var(--rose-dark)}
+
+  footer{background:var(--charcoal);color:#d8ccd2;padding:30px 0;text-align:center;font-size:13.5px}
+  footer a{color:var(--gold-light)}
+
+  @media (max-width:600px){
+    section{padding:30px 0}
+    .envoltura{padding:0 16px}
+  }
+</style>
+</head>
+<body>
+
+<header class="portada">
+  <div class="envoltura">
+    <div class="diamante">💎</div>
+    <h1>April Collections</h1>
+    <p class="lema">
+      El cuaderno de una vendedora por catálogo, convertido en software.
+      Ventas, cobros, inventario y recordatorios — en el teléfono, y también sin señal.
+    </p>
+    <div class="botonera">
+      <a class="boton solido" href="https://www.jsanchez.site/">Ver el producto en vivo</a>
+      <a class="boton hueco" href="https://github.com/Wilmer328/April_Collections">Repositorio en GitHub</a>
+    </div>
+    <div class="autoria">
+      <div class="rotulo">Código de verificación · prueba de autoría</div>
+      <div class="codigo">CODIGO-DE-VERIFICACION-PENDIENTE</div>
+    </div>
+  </div>
+</header>
+
+<main class="envoltura">
+
+  <!-- ── 1 ─────────────────────────────────────────────────────────── -->
+  <section id="problema">
+    <span class="numero">Sección 1</span>
+    <h2>Problema</h2>
+
+    <p>
+      Daysi Rosario Gomez vende joyería, maquillaje, sandalias y perfumes por catálogo en
+      Honduras. Su negocio funciona con una regla que ningún sistema comercial contempla:
+      <strong>casi todo se vende al crédito</strong>, y casi nadie paga de una sola vez. Una
+      clienta se lleva unos aretes hoy, abona cincuenta lempiras el viernes, otros treinta
+      quince días después, y termina de pagar el mes siguiente.
+    </p>
+
+    <p>
+      Todo eso vivía en un cuaderno. Y el cuaderno tiene tres problemas que no se arreglan
+      escribiendo con mejor letra:
+    </p>
+
+    <ul>
+      <li>
+        <strong>La deuda real es invisible.</strong> Saber cuánto debe una clienta exige
+        buscar la venta original, encontrar todos los abonos anotados en páginas distintas y
+        restar a mano. Con treinta clientas activas, nadie hace esa cuenta todos los días.
+      </li>
+      <li>
+        <strong>Los cobros se olvidan.</strong> «Te pago el viernes» es un compromiso que
+        depende de que alguien lo recuerde el viernes. Cuando no se recuerda, el dinero se
+        retrasa semanas, y perseguirlo después incomoda a las dos partes.
+      </li>
+      <li>
+        <strong>No se sabe si el negocio gana.</strong> El cuaderno registra lo que entra,
+        no lo que costó. Sin el costo al lado del precio, el margen es una intuición, y se
+        terminan vendiendo productos que dejan menos de lo que parecía.
+      </li>
+    </ul>
+
+    <div class="destacado">
+      <p>
+        Añádase el contexto: se trabaja desde un teléfono, muchas veces en la calle, y la
+        conexión a internet no siempre está. Un sistema que exija estar en línea para anotar
+        una venta no se usa — se vuelve al cuaderno.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── 2 ─────────────────────────────────────────────────────────── -->
+  <section id="solucion">
+    <span class="numero">Sección 2</span>
+    <h2>Solución</h2>
+
+    <p>
+      April Collections es una aplicación web instalable que traslada ese cuaderno a una base
+      de datos, sin pedirle a la usuaria que cambie su forma de trabajar. La venta a crédito
+      con abonos parciales no es un caso especial del sistema: es <strong>el caso
+      normal</strong>, y el modelo de datos está construido alrededor de él.
+    </p>
+
+    <p>
+      Una venta se compone de tres piezas separadas —la cabecera, los productos vendidos y
+      cada abono recibido— y el saldo pendiente nunca se guarda: <strong>se calcula</strong>.
+      Esa decisión evita la clase de error más cara en un sistema de cobros, que es un saldo
+      almacenado que dejó de coincidir con la suma de sus pagos.
+    </p>
+
+    <p>
+      El dinero se guarda en <strong>centavos enteros</strong>, nunca como número decimal.
+      Un precio de 149.99 lempiras vive en la base como 14999. Los decimales de punto flotante
+      arrastran errores mínimos que, sumados sobre cientos de abonos, terminan produciendo
+      deudas que no cuadran por unos centavos — y una deuda que no cuadra destruye la
+      confianza en todo el sistema.
+    </p>
+
+    <div class="cifras">
+      <div class="cifra"><b>214</b><span>pruebas automatizadas</span></div>
+      <div class="cifra"><b>77.3%</b><span>cobertura de líneas</span></div>
+      <div class="cifra"><b>0</b><span>bugs en SonarCloud</span></div>
+      <div class="cifra"><b>0</b><span>vulnerabilidades</span></div>
+      <div class="cifra"><b>78</b><span>commits</span></div>
+      <div class="cifra"><b>4</b><span>decisiones documentadas</span></div>
+    </div>
+  </section>
+
+  <!-- ── 3 ─────────────────────────────────────────────────────────── -->
+  <section id="funcionalidades">
+    <span class="numero">Sección 3</span>
+    <h2>Funcionalidades</h2>
+
+    <div class="rejilla">
+      <div class="tarjeta">
+        <h4>Ventas con abonos</h4>
+        <p>Registra la venta, sus productos y el abono inicial. El saldo pendiente se recalcula solo cada vez que entra un pago.</p>
+      </div>
+      <div class="tarjeta">
+        <h4>Control de deuda</h4>
+        <p>Quién debe, cuánto y desde cuándo. La deuda más antigua se señala primero, porque es la que más cuesta cobrar.</p>
+      </div>
+      <div class="tarjeta">
+        <h4>Recordatorios de cobro</h4>
+        <p>Se agenda la fecha prometida y la aplicación avisa. Al saldarse la deuda, los avisos pendientes se cierran solos.</p>
+      </div>
+      <div class="tarjeta">
+        <h4>Inventario y existencias</h4>
+        <p>Catálogo por categorías, con aviso de existencias bajas y agotadas antes de prometerle a una clienta algo que no hay.</p>
+      </div>
+      <div class="tarjeta">
+        <h4>Calculadora de precios</h4>
+        <p>Del costo al precio de venta según el margen deseado, y al revés. El margen deja de ser una intuición.</p>
+      </div>
+      <div class="tarjeta">
+        <h4>Indicadores del mes</h4>
+        <p>Vendido, cobrado, por cobrar y ganancia real — costo descontado, no solo ingresos.</p>
+      </div>
+      <div class="tarjeta">
+        <h4>Funciona sin señal</h4>
+        <p>Aplicación web progresiva instalable. Los datos quedan en caché y la pantalla se abre aunque no haya internet.</p>
+      </div>
+      <div class="tarjeta">
+        <h4>Varias personas, un negocio</h4>
+        <p>La dueña y quien la ayude ven exactamente los mismos datos, cada una con su cuenta y su rol.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 4 ─────────────────────────────────────────────────────────── -->
+  <section id="arquitectura">
+    <span class="numero">Sección 4</span>
+    <h2>Arquitectura</h2>
+
+    <p>
+      El sistema se organiza en capas con una regla estricta: <strong>la capa de dominio no
+      conoce el navegador ni la red</strong>. Calcular un saldo, decidir si un recordatorio
+      debe sonar o convertir lempiras a centavos son funciones puras, sin acceso al DOM ni a
+      Supabase. Por eso se pueden probar en milisegundos, y por eso el 98% de esa capa está
+      cubierta por pruebas.
+    </p>
+
+    <div class="lamina">
+      <svg viewBox="0 0 720 400" role="img" aria-label="Diagrama de capas: navegador, aplicación en capas, y Supabase con autenticación, base de datos y políticas de seguridad a nivel de fila">
+        <rect x="0" y="0" width="720" height="400" fill="#fdf8f4"/>
+
+        <rect x="20" y="18" width="320" height="364" rx="12" fill="#fff" stroke="#e8d8dc" stroke-width="1.5"/>
+        <text x="180" y="44" text-anchor="middle" font-family="Georgia,serif" font-size="16" font-weight="bold" fill="#9e3f52">Navegador · PWA</text>
+
+        <rect x="40" y="60" width="280" height="60" rx="9" fill="#f5dde1"/>
+        <text x="180" y="84" text-anchor="middle" font-family="sans-serif" font-size="13.5" font-weight="bold" fill="#2a2024">Interfaz  ·  4 páginas</text>
+        <text x="180" y="103" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#7a6570">landing · login · app · panel</text>
+
+        <rect x="40" y="133" width="280" height="60" rx="9" fill="#f5ead8"/>
+        <text x="180" y="157" text-anchor="middle" font-family="sans-serif" font-size="13.5" font-weight="bold" fill="#2a2024">Dominio  ·  10 módulos puros</text>
+        <text x="180" y="176" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#7a6570">sin DOM · sin red · 98% cubierto</text>
+
+        <rect x="40" y="206" width="280" height="60" rx="9" fill="#d6f0e6"/>
+        <text x="180" y="230" text-anchor="middle" font-family="sans-serif" font-size="13.5" font-weight="bold" fill="#2a2024">Repositorios  ·  7</text>
+        <text x="180" y="249" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#7a6570">centavos ⇄ lempiras · snake ⇄ camel</text>
+
+        <rect x="40" y="279" width="280" height="60" rx="9" fill="#e8d8dc"/>
+        <text x="180" y="303" text-anchor="middle" font-family="sans-serif" font-size="13.5" font-weight="bold" fill="#2a2024">Caché  ·  Service Worker</text>
+        <text x="180" y="322" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#7a6570">abre y funciona sin conexión</text>
+
+        <path d="M348 200 L392 200" stroke="#c8697a" stroke-width="2.5" fill="none" marker-end="url(#punta)"/>
+        <path d="M392 236 L348 236" stroke="#c9a96e" stroke-width="2.5" fill="none" marker-end="url(#punta2)"/>
+        <defs>
+          <marker id="punta" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#c8697a"/></marker>
+          <marker id="punta2" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#c9a96e"/></marker>
+        </defs>
+        <text x="370" y="192" text-anchor="middle" font-family="sans-serif" font-size="10.5" fill="#7a6570">HTTPS</text>
+        <text x="370" y="256" text-anchor="middle" font-family="sans-serif" font-size="10.5" fill="#7a6570">JSON</text>
+
+        <rect x="400" y="18" width="300" height="364" rx="12" fill="#fff" stroke="#e8d8dc" stroke-width="1.5"/>
+        <text x="550" y="44" text-anchor="middle" font-family="Georgia,serif" font-size="16" font-weight="bold" fill="#9e3f52">Supabase</text>
+
+        <rect x="420" y="60" width="260" height="56" rx="9" fill="#f5dde1"/>
+        <text x="550" y="83" text-anchor="middle" font-family="sans-serif" font-size="13.5" font-weight="bold" fill="#2a2024">Autenticación</text>
+        <text x="550" y="101" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#7a6570">Google OAuth · lista de autorizados</text>
+
+        <rect x="420" y="130" width="260" height="56" rx="9" fill="#f5ead8"/>
+        <text x="550" y="153" text-anchor="middle" font-family="sans-serif" font-size="13.5" font-weight="bold" fill="#2a2024">PostgreSQL  ·  12 tablas</text>
+        <text x="550" y="171" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#7a6570">8 migraciones idempotentes</text>
+
+        <rect x="420" y="200" width="260" height="56" rx="9" fill="#d6f0e6"/>
+        <text x="550" y="223" text-anchor="middle" font-family="sans-serif" font-size="13.5" font-weight="bold" fill="#2a2024">5 vistas de indicadores</text>
+        <text x="550" y="241" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#7a6570">saldos y KPI calculados en la base</text>
+
+        <rect x="420" y="270" width="260" height="70" rx="9" fill="#9e3f52"/>
+        <text x="550" y="295" text-anchor="middle" font-family="sans-serif" font-size="13.5" font-weight="bold" fill="#fff">Row Level Security</text>
+        <text x="550" y="313" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#f5dde1">la barrera real: se evalúa en el servidor</text>
+        <text x="550" y="330" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#f5dde1">manipular el navegador no la salta</text>
+      </svg>
+      <p class="pie">Figura 1 — Capas del sistema. La autorización no vive en la interfaz, sino en PostgreSQL.</p>
+    </div>
+
+    <h3>El negocio, y no la persona, como dueño de los datos</h3>
+
+    <p>
+      El diseño inicial colgaba cada fila de la persona que la creó. Funcionó hasta que se
+      probó en producción con dos cuentas: la dueña registraba una venta y quien entraba a
+      ayudarla <strong>no la veía</strong>. Estaban trabajando sobre dos negocios paralelos
+      sin saberlo. Modelar «usuario» donde debía haber «negocio» no se corrige ajustando una
+      política — hay que cambiar de qué cuelgan los datos.
+    </p>
+
+    <div class="lamina">
+      <svg viewBox="0 0 720 300" role="img" aria-label="Modelo de acceso: dos negocios, personas con rol, y los datos colgando del negocio">
+        <rect x="0" y="0" width="720" height="300" fill="#fdf8f4"/>
+
+        <rect x="30" y="30" width="180" height="52" rx="9" fill="#fff" stroke="#c8697a" stroke-width="1.5"/>
+        <text x="120" y="52" text-anchor="middle" font-family="sans-serif" font-size="12.5" font-weight="bold" fill="#2a2024">aprilcollections2026</text>
+        <text x="120" y="70" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#7a6570">propietaria</text>
+
+        <rect x="30" y="100" width="180" height="52" rx="9" fill="#fff" stroke="#c8697a" stroke-width="1.5"/>
+        <text x="120" y="122" text-anchor="middle" font-family="sans-serif" font-size="12.5" font-weight="bold" fill="#2a2024">wilmer415sanchez</text>
+        <text x="120" y="140" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#7a6570">administrador</text>
+
+        <rect x="30" y="200" width="180" height="52" rx="9" fill="#fff" stroke="#c9a96e" stroke-width="1.5"/>
+        <text x="120" y="222" text-anchor="middle" font-family="sans-serif" font-size="12.5" font-weight="bold" fill="#2a2024">cuenta demo</text>
+        <text x="120" y="240" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#7a6570">lector</text>
+
+        <path d="M215 56 L290 80" stroke="#c8697a" stroke-width="2" fill="none"/>
+        <path d="M215 126 L290 96" stroke="#c8697a" stroke-width="2" fill="none"/>
+        <path d="M215 226 L290 216" stroke="#c9a96e" stroke-width="2" fill="none"/>
+
+        <rect x="292" y="58" width="150" height="60" rx="10" fill="#9e3f52"/>
+        <text x="367" y="83" text-anchor="middle" font-family="Georgia,serif" font-size="14" font-weight="bold" fill="#fff">April Collections</text>
+        <text x="367" y="102" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#f5dde1">datos reales</text>
+
+        <rect x="292" y="188" width="150" height="60" rx="10" fill="#c9a96e"/>
+        <text x="367" y="213" text-anchor="middle" font-family="Georgia,serif" font-size="14" font-weight="bold" fill="#fff">Demostración</text>
+        <text x="367" y="232" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#fff">datos inventados</text>
+
+        <path d="M447 88 L512 88" stroke="#9e3f52" stroke-width="2" fill="none"/>
+        <path d="M447 218 L512 218" stroke="#c9a96e" stroke-width="2" fill="none"/>
+
+        <rect x="514" y="48" width="176" height="82" rx="10" fill="#fff" stroke="#e8d8dc" stroke-width="1.5"/>
+        <text x="602" y="70" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#9e3f52">clientas · productos</text>
+        <text x="602" y="88" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#9e3f52">ventas · abonos</text>
+        <text x="602" y="112" text-anchor="middle" font-family="sans-serif" font-size="10.5" fill="#7a6570">cada fila lleva negocio_id</text>
+
+        <rect x="514" y="178" width="176" height="82" rx="10" fill="#fff" stroke="#e8d8dc" stroke-width="1.5"/>
+        <text x="602" y="209" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#c9a96e">datos de demostración</text>
+        <text x="602" y="232" text-anchor="middle" font-family="sans-serif" font-size="10.5" fill="#7a6570">aislados por diseño</text>
+
+        <text x="360" y="285" text-anchor="middle" font-family="sans-serif" font-size="11.5" font-style="italic" fill="#7a6570">Las clientas reales nunca son visibles desde la cuenta de demostración.</text>
+      </svg>
+      <p class="pie">Figura 2 — Personas, negocios y datos. El rol decide quién puede escribir; PostgreSQL lo verifica.</p>
+    </div>
+
+    <p>
+      Hoy los datos cuelgan del negocio y las personas pertenecen a él con un rol. Las
+      políticas de seguridad ya no preguntan «¿esta fila es tuya?» sino «¿eres miembro de
+      este negocio, y tu rol te permite esto?». La lectura y la escritura usan funciones
+      distintas, de modo que un rol de solo consulta existe de verdad y no depende de que la
+      interfaz esconda un botón.
+    </p>
+  </section>
+
+  <!-- ── 5 ─────────────────────────────────────────────────────────── -->
+  <section id="tecnologias">
+    <span class="numero">Sección 5</span>
+    <h2>Tecnologías</h2>
+
+    <div class="marco">
+      <table>
+        <thead>
+          <tr><th>Pieza</th><th>Herramienta</th><th>Por qué esta y no otra</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Lenguaje</td><td>JavaScript con módulos ES</td><td>Sin framework. El producto es pequeño y cuatro páginas no justifican el peso ni la curva de uno.</td></tr>
+          <tr><td>Empaquetado</td><td>Vite 8</td><td>Multipágina real: cada pantalla es un punto de entrada propio, no una aplicación de página única.</td></tr>
+          <tr><td>Pruebas</td><td>Vitest 4</td><td>Corre en Node porque el dominio es puro. 214 pruebas tardan alrededor de un segundo.</td></tr>
+          <tr><td>Base de datos</td><td>PostgreSQL vía Supabase</td><td>Permite poner la autorización dentro de la base con Row Level Security, no en el cliente.</td></tr>
+          <tr><td>Identidad</td><td>Google OAuth</td><td>Nadie inventa ni guarda contraseñas. El acceso se restringe además con una lista de correos autorizados.</td></tr>
+          <tr><td>Alojamiento</td><td>Vercel + dominio propio</td><td>Despliegue automático desde la rama principal y cabeceras de seguridad por ruta.</td></tr>
+          <tr><td>Integración continua</td><td>GitHub Actions</td><td>Pruebas, build y análisis en cada cambio. La rama principal está protegida y exige que todo pase en verde.</td></tr>
+          <tr><td>Calidad</td><td>SonarCloud</td><td>Análisis estático sobre 3751 líneas: 0 bugs, 0 vulnerabilidades, 0 code smells.</td></tr>
+          <tr><td>Sin conexión</td><td>Service worker propio</td><td>Escrito a mano en lugar de usar una librería, para entender exactamente qué se guarda y cuándo se invalida.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="lamina">
+      <svg viewBox="0 0 720 210" role="img" aria-label="Panel de métricas de calidad: cobertura 77.3 por ciento, 0 bugs, 0 vulnerabilidades, 0 code smells, 214 pruebas">
+        <rect x="0" y="0" width="720" height="210" fill="#fdf8f4"/>
+        <text x="360" y="28" text-anchor="middle" font-family="Georgia,serif" font-size="15" font-weight="bold" fill="#9e3f52">Medido, no declarado · SonarCloud y Vitest</text>
+
+        <rect x="30" y="52" width="660" height="26" rx="13" fill="#e8d8dc"/>
+        <rect x="30" y="52" width="510" height="26" rx="13" fill="#4a9e7a"/>
+        <text x="46" y="70" font-family="sans-serif" font-size="12.5" font-weight="bold" fill="#fff">Cobertura de líneas · 77.3%</text>
+        <text x="676" y="70" text-anchor="end" font-family="sans-serif" font-size="11.5" fill="#7a6570">mínimo exigido 60%</text>
+
+        <g font-family="sans-serif" text-anchor="middle">
+          <rect x="30" y="98" width="152" height="72" rx="10" fill="#fff" stroke="#e8d8dc"/>
+          <text x="106" y="132" font-family="Georgia,serif" font-size="27" font-weight="bold" fill="#4a9e7a">0</text>
+          <text x="106" y="152" font-size="11.5" fill="#7a6570">bugs</text>
+
+          <rect x="199" y="98" width="152" height="72" rx="10" fill="#fff" stroke="#e8d8dc"/>
+          <text x="275" y="132" font-family="Georgia,serif" font-size="27" font-weight="bold" fill="#4a9e7a">0</text>
+          <text x="275" y="152" font-size="11.5" fill="#7a6570">vulnerabilidades</text>
+
+          <rect x="368" y="98" width="152" height="72" rx="10" fill="#fff" stroke="#e8d8dc"/>
+          <text x="444" y="132" font-family="Georgia,serif" font-size="27" font-weight="bold" fill="#4a9e7a">0</text>
+          <text x="444" y="152" font-size="11.5" fill="#7a6570">code smells</text>
+
+          <rect x="537" y="98" width="153" height="72" rx="10" fill="#fff" stroke="#e8d8dc"/>
+          <text x="613" y="132" font-family="Georgia,serif" font-size="27" font-weight="bold" fill="#9e3f52">214</text>
+          <text x="613" y="152" font-size="11.5" fill="#7a6570">pruebas en verde</text>
+        </g>
+
+        <text x="360" y="194" text-anchor="middle" font-family="sans-serif" font-size="11" font-style="italic" fill="#7a6570">Quality gate: OK · duplicación 0.0% · 3751 líneas analizadas</text>
+      </svg>
+      <p class="pie">Figura 3 — Métricas reales del análisis, no estimaciones.</p>
+    </div>
+  </section>
+
+  <!-- ── 6 ─────────────────────────────────────────────────────────── -->
+  <section id="manual">
+    <span class="numero">Sección 6</span>
+    <h2>Manual de uso paso a paso</h2>
+
+    <ol class="pasos">
+      <li>
+        <b>Entrar</b>
+        Abre <code>www.jsanchez.site</code> y pulsa «Entrar». Elige «Continuar con Google»
+        con una cuenta autorizada. No hay registro abierto: el acceso se concede
+        explícitamente, porque dentro hay datos personales de terceras personas.
+      </li>
+      <li>
+        <b>Instalar en el teléfono</b>
+        El navegador ofrecerá «Añadir a pantalla de inicio». Al instalarla se abre como una
+        aplicación, a pantalla completa, y guarda los datos para funcionar sin señal.
+      </li>
+      <li>
+        <b>Cargar el catálogo</b>
+        En <em>Inventario</em>, agrega cada producto con su nombre, categoría, costo, precio
+        y existencias. Si no sabes qué precio poner, escribe el costo y el porcentaje de
+        ganancia: el precio se calcula solo.
+      </li>
+      <li>
+        <b>Registrar una clienta</b>
+        En <em>Clientes</em>, basta el nombre. El DNI y el teléfono son opcionales, pero el
+        teléfono ayuda después a recordarle un pago.
+      </li>
+      <li>
+        <b>Anotar una venta</b>
+        En <em>Venta</em>, elige la clienta, agrega los productos y marca si fue de contado o
+        al crédito. Si dejó algo adelantado, escríbelo en «Abono inicial». Las existencias se
+        descuentan automáticamente.
+      </li>
+      <li>
+        <b>Recibir un abono</b>
+        Busca la venta y registra el pago. El saldo pendiente se recalcula al instante, y
+        cuando llega a cero los recordatorios de esa venta se cierran solos.
+      </li>
+      <li>
+        <b>Agendar un cobro</b>
+        En <em>Recordatorios</em>, guarda la fecha y la hora que la clienta prometió, con una
+        nota si hace falta. La aplicación avisará ese día.
+      </li>
+      <li>
+        <b>Revisar el mes</b>
+        En <em>Inicio</em>, elige mes y año para ver lo vendido, lo cobrado, lo que falta por
+        cobrar y la ganancia real con el costo ya descontado.
+      </li>
+    </ol>
+
+    <div class="destacado">
+      <p>
+        <strong>Sin internet:</strong> la aplicación abre igual y muestra los últimos datos
+        guardados. Lo que se registre sin conexión se envía al recuperarla. Si un guardado
+        falla, aparece un aviso rojo que permanece en pantalla — nunca un mensaje que se
+        desvanece y deja creer que se guardó.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── 7 ─────────────────────────────────────────────────────────── -->
+  <section id="cliente">
+    <span class="numero">Sección 7</span>
+    <h2>Cliente</h2>
+
+    <p>
+      <strong>Daysi Rosario Gomez</strong> — vendedora por catálogo en Honduras, dueña de
+      April Collections. Vende joyería, maquillaje, sandalias y perfumes, en su mayoría al
+      crédito y con abonos parciales.
+    </p>
+
+    <p>
+      No es un cliente de ejercicio. Es una usuaria real, con un negocio real y clientas
+      reales, que trabaja desde su teléfono. Eso condicionó el producto en cosas que un caso
+      ficticio nunca habría exigido: que funcione sin señal porque la conexión falla de
+      verdad; que los importes se guarden en centavos porque una deuda descuadrada rompe la
+      confianza de una clienta concreta; que los textos sean legibles y los toques amplios
+      porque se usa de pie, deprisa, en la calle.
+    </p>
+
+    <p>
+      También condicionó lo que <em>no</em> se hizo. La base contiene nombres, teléfonos y
+      documentos de personas que no son usuarias de la aplicación y nunca consintieron
+      aparecer en ella. Por eso existe un negocio de demostración con datos inventados,
+      aislado por las propias políticas de la base, y por eso enseñar el producto nunca exige
+      enseñar a las clientas de nadie.
+    </p>
+
+    <div class="destacado">
+      <p>
+        Las decisiones de diseño que más cambiaron el producto salieron de usarlo con ella,
+        no de planificarlo. El fallo de que dos cuentas vieran datos distintos apareció
+        probando en producción — y obligó a rehacer el modelo de acceso completo.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── 8 ─────────────────────────────────────────────────────────── -->
+  <section id="autor">
+    <span class="numero">Sección 8</span>
+    <h2>Autor</h2>
+
+    <p>
+      <strong>Wilmer Sánchez</strong> — estudiante de Ingeniería de Software. April
+      Collections es su proyecto de Capstone, construido para un cliente real a lo largo de
+      78 commits.
+    </p>
+
+    <p>
+      El proyecto se llevó como se lleva un producto y no como una entrega: rama principal
+      protegida, cada cambio por pull request con integración continua en verde, migraciones
+      de base de datos idempotentes y numeradas, y cuatro decisiones de arquitectura
+      documentadas con sus alternativas descartadas y el motivo del descarte.
+    </p>
+
+    <p>
+      Los fallos que más enseñaron fueron los que sólo aparecen contra el sistema real:
+      una migración que PostgreSQL rechazó porque <code>CREATE OR REPLACE VIEW</code> no
+      puede renombrar columnas; una inserción que olvidaba el identificador de negocio y sólo
+      fallaba la primera vez que entraba una cuenta nueva; y la portada del sitio sirviéndose
+      en producción sin cabecera de seguridad de contenido, porque el patrón de ruta no
+      coincidía con la raíz. Ninguno se veía leyendo el código. Los tres aparecieron
+      comprobando el sistema en marcha.
+    </p>
+
+    <div class="botonera" style="justify-content:flex-start;margin-top:22px">
+      <a class="boton solido" href="https://www.jsanchez.site/">Producto en vivo</a>
+      <a class="boton hueco" href="https://github.com/Wilmer328/April_Collections">Código fuente</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="envoltura">
+    <p style="margin:0 0 6px"><strong>April Collections</strong> — Proyecto Capstone de Ingeniería de Software</p>
+    <p style="margin:0">
+      <a href="https://www.jsanchez.site/">www.jsanchez.site</a> ·
+      <a href="https://github.com/Wilmer328/April_Collections">github.com/Wilmer328/April_Collections</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
