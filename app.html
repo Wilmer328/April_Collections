@@ -587,7 +587,7 @@ function mostrarErrorDeGuardado(error) {
   document.getElementById('error-guardado').hidden = false;
 }
 
-function fmt(n) { return 'L ' + parseFloat(n||0).toFixed(2); }
+function fmt(n) { return 'L ' + Number.parseFloat(n||0).toFixed(2); }
 function today() { return hoyLocal(); }
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -650,8 +650,8 @@ function initFiltroMeses() {
 }
 
 function renderInicio() {
-  const mes = parseInt(document.getElementById('filtro-mes')?.value ?? new Date().getMonth());
-  const anio = parseInt(document.getElementById('filtro-anio')?.value ?? new Date().getFullYear());
+  const mes = Number.parseInt(document.getElementById('filtro-mes')?.value ?? new Date().getMonth());
+  const anio = Number.parseInt(document.getElementById('filtro-anio')?.value ?? new Date().getFullYear());
   const hoy = today();
   const mesNombres = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const esActual = mes === new Date().getMonth() && anio === new Date().getFullYear();
@@ -712,7 +712,7 @@ function openVentaDetalle(id) {
 }
 
 async function registrarAbono(ventaId) {
-  const monto = parseFloat(document.getElementById('nuevo-abono').value||0);
+  const monto = Number.parseFloat(document.getElementById('nuevo-abono').value||0);
   if(!monto || monto <= 0) { showToast('⚠️ Ingresa un monto válido'); return; }
   const v = data.ventas.find(x=>x.id===ventaId); if(!v) return;
 
@@ -788,11 +788,11 @@ function renderClientes() {
 
 // ── INVENTARIO ──
 function calcPrecioInv() {
-  const c=parseFloat(document.getElementById('inv-costo').value||0), m=parseFloat(document.getElementById('inv-margen').value||0);
+  const c=Number.parseFloat(document.getElementById('inv-costo').value||0), m=Number.parseFloat(document.getElementById('inv-margen').value||0);
   if(c&&m){ const p=c*(1+m/100); document.getElementById('inv-precio').value=p.toFixed(2); document.getElementById('inv-ganancia-unit').textContent=fmt(p-c); }
 }
 function calcMargenInv() {
-  const c=parseFloat(document.getElementById('inv-costo').value||0), p=parseFloat(document.getElementById('inv-precio').value||0);
+  const c=Number.parseFloat(document.getElementById('inv-costo').value||0), p=Number.parseFloat(document.getElementById('inv-precio').value||0);
   if(c&&p>c){ document.getElementById('inv-margen').value=((p-c)/c*100).toFixed(0); document.getElementById('inv-ganancia-unit').textContent=fmt(p-c); }
 }
 
@@ -804,9 +804,9 @@ async function guardarProducto() {
     const creado = await repoProductos.crear({
       nombre,
       categoria: document.getElementById('inv-categoria').value,
-      costo: parseFloat(document.getElementById('inv-costo').value||0),
-      precio: parseFloat(document.getElementById('inv-precio').value||0),
-      stock: parseInt(document.getElementById('inv-stock').value||0),
+      costo: Number.parseFloat(document.getElementById('inv-costo').value||0),
+      precio: Number.parseFloat(document.getElementById('inv-precio').value||0),
+      stock: Number.parseInt(document.getElementById('inv-stock').value||0),
     });
     data.productos.push(creado);
   }, '✅ Producto agregado: ' + nombre, 'producto');
@@ -940,12 +940,12 @@ function abrirEditarProducto(id) {
   document.getElementById('modal-producto').classList.add('open');
 }
 
-function calcEpPrecio() { const c=parseFloat(document.getElementById('ep-costo').value||0),m=parseFloat(document.getElementById('ep-margen').value||0); if(c&&m) document.getElementById('ep-precio').value=(c*(1+m/100)).toFixed(2); }
-function calcEpMargen() { const c=parseFloat(document.getElementById('ep-costo').value||0),p=parseFloat(document.getElementById('ep-precio').value||0); if(c&&p>c) document.getElementById('ep-margen').value=((p-c)/c*100).toFixed(0); }
+function calcEpPrecio() { const c=Number.parseFloat(document.getElementById('ep-costo').value||0),m=Number.parseFloat(document.getElementById('ep-margen').value||0); if(c&&m) document.getElementById('ep-precio').value=(c*(1+m/100)).toFixed(2); }
+function calcEpMargen() { const c=Number.parseFloat(document.getElementById('ep-costo').value||0),p=Number.parseFloat(document.getElementById('ep-precio').value||0); if(c&&p>c) document.getElementById('ep-margen').value=((p-c)/c*100).toFixed(0); }
 
 async function ajustarStock(id, dir) {
   const p = data.productos.find(x=>x.id===id); if(!p) return;
-  const adj = parseInt(document.getElementById('ep-adj').value||1);
+  const adj = Number.parseInt(document.getElementById('ep-adj').value||1);
   // La regla de que el stock nunca baja de cero vive en el dominio.
   const nuevo = ajustarStockDominio(p.stock, dir*adj);
 
@@ -968,8 +968,8 @@ async function guardarEdicionProducto(id) {
   const cambios = {
     nombre: document.getElementById('ep-nombre').value.trim()||p.nombre,
     categoria: document.getElementById('ep-cat').value,
-    costo: parseFloat(document.getElementById('ep-costo').value||p.costo),
-    precio: parseFloat(document.getElementById('ep-precio').value||p.precio),
+    costo: Number.parseFloat(document.getElementById('ep-costo').value||p.costo),
+    precio: Number.parseFloat(document.getElementById('ep-precio').value||p.precio),
   };
 
   const guardado = await guardarEnLaNube(async () => {
@@ -1171,13 +1171,13 @@ function selectProd(i, productoId) {
   // quita el bloqueo del campo de precio segun el producto elegido.
   renderVentaItems();
 }
-function updateItem(i,field,val) { ventaItems[i][field]=field==='qty'?parseInt(val)||1:field==='precio'?parseFloat(val)||0:val; updateVentaTotals(); }
+function updateItem(i,field,val) { ventaItems[i][field]=field==='qty'?Number.parseInt(val)||1:field==='precio'?Number.parseFloat(val)||0:val; updateVentaTotals(); }
 function removeItem(i) { ventaItems.splice(i,1); renderVentaItems(); }
 
 function updateVentaTotals() {
   const total = ventaItems.reduce((s,i)=>s+i.precio*i.qty,0);
   const tipo = document.getElementById('venta-tipo-pago').value;
-  const abono = tipo==='contado'?total:tipo==='abono'?parseFloat(document.getElementById('venta-abono').value||0):0;
+  const abono = tipo==='contado'?total:tipo==='abono'?Number.parseFloat(document.getElementById('venta-abono').value||0):0;
   document.getElementById('venta-total-txt').textContent = fmt(total);
   document.getElementById('venta-pendiente-txt').textContent = fmt(Math.max(0,total-abono));
 }
@@ -1255,7 +1255,7 @@ function limpiarVenta() {
 
 // ── PRECIOS ──
 function calcPrecio() {
-  const c=parseFloat(document.getElementById('calc-costo').value||0), m=parseFloat(document.getElementById('calc-margen').value||0);
+  const c=Number.parseFloat(document.getElementById('calc-costo').value||0), m=Number.parseFloat(document.getElementById('calc-margen').value||0);
   document.getElementById('calc-slider').value=m; document.getElementById('calc-margen-label').textContent=m+'%';
   const p=c*(1+m/100);
   document.getElementById('calc-precio-result').textContent=fmt(p);
