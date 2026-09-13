@@ -214,20 +214,20 @@
   <button class="nav-btn" data-pagina="clientes" onclick="showPage('clientes',this)">👥 Clientes</button>
   <button class="nav-btn" data-pagina="inventario" onclick="showPage('inventario',this)">📦 Inventario</button>
   <button class="nav-btn" data-pagina="precios" onclick="showPage('precios',this)">🏷️ Precios</button>
-  <button class="nav-btn" id="nav-recordatorios" data-pagina="recordatorios" onclick="showPage('recordatorios',this)">🔔 Recordatorios<span id="notif-badge" style="display:none;background:var(--danger);color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:700;line-height:15px;text-align:center;margin-left:4px;vertical-align:middle;display:none"></span></button>
+  <button class="nav-btn" id="nav-recordatorios" data-pagina="recordatorios" onclick="showPage('recordatorios',this)">🔔 Recordatorios<span id="notif-badge" style="display:none;background:var(--danger);color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:700;line-height:15px;text-align:center;margin-left:4px;vertical-align:middle"></span></button>
 </nav>
 
 <!-- INICIO -->
 <div id="page-inicio" class="page active">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
     <span style="font-family:'Playfair Display',serif;font-size:14px;font-weight:600">📅</span>
-    <select id="filtro-mes" onchange="renderInicio()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;cursor:pointer">
+    <select id="filtro-mes" aria-label="Filtrar por mes" onchange="renderInicio()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;cursor:pointer">
       <option value="0">Enero</option><option value="1">Febrero</option><option value="2">Marzo</option>
       <option value="3">Abril</option><option value="4">Mayo</option><option value="5">Junio</option>
       <option value="6">Julio</option><option value="7">Agosto</option><option value="8">Septiembre</option>
       <option value="9">Octubre</option><option value="10">Noviembre</option><option value="11">Diciembre</option>
     </select>
-    <select id="filtro-anio" onchange="renderInicio()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;cursor:pointer"></select>
+    <select id="filtro-anio" aria-label="Filtrar por año" onchange="renderInicio()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);outline:none;cursor:pointer"></select>
     <span id="filtro-badge" style="font-size:11px;color:var(--muted)"></span>
   </div>
   <div class="stat-grid">
@@ -249,13 +249,13 @@
     <div class="card-title">🛍️ Registrar venta</div>
     <div class="form-grid form-grid-2">
       <div class="field campo-busqueda">
-        <label>Cliente(a)</label>
-        <input type="search" id="buscar-venta-cliente" autocomplete="off" placeholder="Escribe el nombre para buscar">
+        <label for="buscar-venta-cliente">Cliente(a)</label>
+        <input type="search" id="buscar-venta-cliente" aria-label="Buscar clienta por nombre" autocomplete="off" placeholder="Escribe el nombre para buscar">
         <input type="hidden" id="venta-cliente">
         <div class="sugerencias" id="sug-cliente" role="listbox" hidden></div>
         <div class="elegido" id="cliente-elegido" hidden></div>
       </div>
-      <div class="field"><label>Fecha</label><input type="date" id="venta-fecha"></div>
+      <div class="field"><label for="venta-fecha">Fecha</label><input type="date" id="venta-fecha"></div>
     </div>
     <div class="divider"></div>
     <div class="section-label">Productos</div>
@@ -263,14 +263,14 @@
     <button class="btn btn-ghost btn-sm" onclick="addVentaItem()" style="margin-top:7px">+ Agregar producto</button>
     <div class="divider"></div>
     <div class="form-grid form-grid-2">
-      <div class="field"><label>Tipo de pago</label>
+      <div class="field"><label for="venta-tipo-pago">Tipo de pago</label>
         <select id="venta-tipo-pago" onchange="updatePagoFields()">
           <option value="contado">Al contado</option>
           <option value="abono">Con abono inicial</option>
           <option value="credito">A crédito</option>
         </select>
       </div>
-      <div class="field" id="campo-abono-inicial" style="display:none"><label>Abono inicial (L)</label><input type="number" id="venta-abono" placeholder="0.00" min="0"></div>
+      <div class="field" id="campo-abono-inicial" style="display:none"><label for="venta-abono">Abono inicial (L)</label><input type="number" id="venta-abono" placeholder="0.00" min="0"></div>
     </div>
     <div class="price-preview" style="margin-top:10px">
       <div><div style="font-size:11px;color:var(--muted);font-weight:500">TOTAL VENTA</div><strong id="venta-total-txt">L 0.00</strong></div>
@@ -288,16 +288,16 @@
   <div class="card">
     <div class="card-title">👤 Agregar cliente(a)</div>
     <div class="form-grid form-grid-2">
-      <div class="field"><label>Nombre completo</label><input type="text" id="cliente-nombre" placeholder="Nombre y apellido"></div>
-      <div class="field"><label>DNI (opcional)</label><input type="text" id="cliente-dni" inputmode="numeric" maxlength="15" placeholder="0801-1999-12345"></div>
-      <div class="field"><label>Teléfono (opcional)</label><input type="tel" id="cliente-tel" placeholder="9999-9999"></div>
+      <div class="field"><label for="cliente-nombre">Nombre completo</label><input type="text" id="cliente-nombre" placeholder="Nombre y apellido"></div>
+      <div class="field"><label for="cliente-dni">DNI (opcional)</label><input type="text" id="cliente-dni" inputmode="numeric" maxlength="15" placeholder="0801-1999-12345"></div>
+      <div class="field"><label for="cliente-tel">Teléfono (opcional)</label><input type="tel" id="cliente-tel" placeholder="9999-9999"></div>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-top:6px">El DNI sirve para distinguir clientas con el mismo nombre. Puedes dejarlo vacío.</div>
     <div class="btn-row"><button class="btn btn-primary" onclick="guardarCliente()">➕ Agregar cliente(a)</button></div>
   </div>
   <div class="card">
     <div class="card-title">👥 Mis clientes</div>
-    <div class="field" style="margin-bottom:10px"><input type="search" id="buscar-cliente" placeholder="🔍 Buscar por nombre, DNI o teléfono"></div>
+    <div class="field" style="margin-bottom:10px"><input type="search" id="buscar-cliente" aria-label="Buscar clienta por nombre, DNI o teléfono" placeholder="🔍 Buscar por nombre, DNI o teléfono"></div>
     <div class="list" id="lista-clientes"><div class="empty-state"><div class="emoji">👭</div>Aún no hay clientes</div></div>
   </div>
 </div>
@@ -307,12 +307,12 @@
   <div class="card">
     <div class="card-title">📦 Agregar producto</div>
     <div class="form-grid form-grid-2">
-      <div class="field"><label>Nombre</label><input type="text" id="inv-nombre" placeholder="Ej: Aretes dorados"></div>
-      <div class="field"><label>Categoría</label><select id="inv-categoria"></select></div>
-      <div class="field"><label>Costo (L)</label><input type="number" id="inv-costo" placeholder="0.00" min="0" oninput="calcPrecioInv()"></div>
-      <div class="field"><label>% ganancia</label><input type="number" id="inv-margen" placeholder="30" min="0" oninput="calcPrecioInv()"></div>
-      <div class="field"><label>Precio de venta (L)</label><input type="number" id="inv-precio" placeholder="0.00" min="0" oninput="calcMargenInv()"></div>
-      <div class="field"><label>Stock</label><input type="number" id="inv-stock" placeholder="0" min="0"></div>
+      <div class="field"><label for="inv-nombre">Nombre</label><input type="text" id="inv-nombre" placeholder="Ej: Aretes dorados"></div>
+      <div class="field"><label for="inv-categoria">Categoría</label><select id="inv-categoria"></select></div>
+      <div class="field"><label for="inv-costo">Costo (L)</label><input type="number" id="inv-costo" placeholder="0.00" min="0" oninput="calcPrecioInv()"></div>
+      <div class="field"><label for="inv-margen">% ganancia</label><input type="number" id="inv-margen" placeholder="30" min="0" oninput="calcPrecioInv()"></div>
+      <div class="field"><label for="inv-precio">Precio de venta (L)</label><input type="number" id="inv-precio" placeholder="0.00" min="0" oninput="calcMargenInv()"></div>
+      <div class="field"><label for="inv-stock">Stock</label><input type="number" id="inv-stock" placeholder="0" min="0"></div>
     </div>
     <div class="price-preview" style="margin-top:4px"><span style="font-size:12px">Ganancia por unidad:</span><strong id="inv-ganancia-unit">L 0.00</strong></div>
     <div class="btn-row"><button class="btn btn-primary" onclick="guardarProducto()">➕ Agregar producto</button></div>
@@ -321,8 +321,8 @@
     <div class="card-title">🏷️ Mis categorías</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
       <div class="field" style="flex:1;min-width:170px;margin:0">
-        <label>Nueva categoría</label>
-        <input type="text" id="nueva-categoria" maxlength="24" placeholder="Ej: Bolsos">
+        <label for="nueva-categoria">Nueva categoría</label>
+        <input type="text" id="nueva-categoria" aria-label="Nombre de la categoría nueva" maxlength="24" placeholder="Ej: Bolsos">
       </div>
       <button class="btn btn-primary btn-sm" id="btn-agregar-categoria" type="button">➕ Agregar</button>
     </div>
@@ -332,7 +332,7 @@
   <div class="card">
     <div class="card-title">🗂️ Catálogo</div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px" id="filtros-categoria"></div>
-    <div class="field" style="margin-bottom:10px"><input type="search" id="buscar-inventario" placeholder="🔍 Buscar producto"></div>
+    <div class="field" style="margin-bottom:10px"><input type="search" id="buscar-inventario" aria-label="Buscar producto" placeholder="🔍 Buscar producto"></div>
     <div class="list" id="lista-inventario"><div class="empty-state"><div class="emoji">📦</div>No hay productos</div></div>
   </div>
 </div>
@@ -342,12 +342,12 @@
   <div class="card">
     <div class="card-title">🏷️ Calculadora de precio</div>
     <div class="form-grid form-grid-2">
-      <div class="field"><label>Costo de compra (L)</label><input type="number" id="calc-costo" placeholder="0.00" min="0" oninput="calcPrecio()"></div>
-      <div class="field"><label>% de ganancia</label><input type="number" id="calc-margen" placeholder="30" min="0" max="300" oninput="calcPrecio()" value="30"></div>
+      <div class="field"><label for="calc-costo">Costo de compra (L)</label><input type="number" id="calc-costo" placeholder="0.00" min="0" oninput="calcPrecio()"></div>
+      <div class="field"><label for="calc-margen">% de ganancia</label><input type="number" id="calc-margen" placeholder="30" min="0" max="300" oninput="calcPrecio()" value="30"></div>
     </div>
     <div style="margin: 10px 0 4px">
       <div style="font-size:11px;color:var(--muted);margin-bottom:5px">Ajusta: <strong id="calc-margen-label">30%</strong></div>
-      <input type="range" min="5" max="200" value="30" id="calc-slider" oninput="syncSlider()">
+      <input type="range" min="5" max="200" value="30" id="calc-slider" aria-label="Porcentaje de ganancia" oninput="syncSlider()">
     </div>
     <div class="price-preview" style="margin-top:10px">
       <div><div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:3px">PRECIO DE VENTA</div><strong id="calc-precio-result">L 0.00</strong></div>
@@ -365,12 +365,12 @@
   <div class="card">
     <div class="card-title">➕ Nuevo recordatorio</div>
     <div class="form-grid form-grid-2">
-      <div class="field"><label>Cliente(a)</label><select id="rec-cliente"><option value="">— Selecciona —</option></select></div>
-      <div class="field"><label>Venta pendiente</label><select id="rec-venta"><option value="">— Elige cliente(a) primero —</option></select></div>
-      <div class="field"><label>Fecha de pago prometida</label><input type="date" id="rec-fecha"></div>
-      <div class="field"><label>Hora del recordatorio</label><input type="time" id="rec-hora" value="09:00"></div>
+      <div class="field"><label for="rec-cliente">Cliente(a)</label><select id="rec-cliente"><option value="">— Selecciona —</option></select></div>
+      <div class="field"><label for="rec-venta">Venta pendiente</label><select id="rec-venta"><option value="">— Elige cliente(a) primero —</option></select></div>
+      <div class="field"><label for="rec-fecha">Fecha de pago prometida</label><input type="date" id="rec-fecha"></div>
+      <div class="field"><label for="rec-hora">Hora del recordatorio</label><input type="time" id="rec-hora" value="09:00"></div>
     </div>
-    <div class="field" style="margin-top:8px"><label>Nota (opcional)</label><input type="text" id="rec-nota" placeholder='Ej: "Me dijo que paga en la mañana"'></div>
+    <div class="field" style="margin-top:8px"><label for="rec-nota">Nota (opcional)</label><input type="text" id="rec-nota" placeholder='Ej: "Me dijo que paga en la mañana"'></div>
     <div class="btn-row"><button class="btn btn-primary" onclick="guardarRecordatorio()">🔔 Agregar recordatorio</button></div>
   </div>
   <div class="card">
@@ -706,7 +706,7 @@ function openVentaDetalle(id) {
   let html = `<div class="section-label">Productos</div><div class="abono-list">${v.items.map(i=>`<div class="abono-row"><span>${i.nombre}</span><span style="margin-left:auto">x${i.qty} × ${fmt(i.precio)} = <strong>${fmt(i.precio*i.qty)}</strong></span></div>`).join('')}</div><div class="divider"></div><div style="display:flex;justify-content:space-between;font-weight:600;font-size:14px;margin-bottom:14px"><span>Total</span><span>${fmt(v.total)}</span></div>`;
   if(v.abonos && v.abonos.length) html += `<div class="section-label">Abonos</div><div class="abono-list">${v.abonos.map(a=>`<div class="abono-row"><span class="abono-amount">+ ${fmt(a.monto)}</span><span class="abono-date">${a.fecha}</span></div>`).join('')}</div><div class="divider"></div>`;
   html += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px"><span>Cobrado: <strong style="color:var(--success)">${fmt(cobrado)}</strong></span><span>Pendiente: <strong style="color:${pend>0.01?'var(--danger)':'var(--success)'}">${fmt(pend)}</strong></span></div>`;
-  if(pend > 0.01) html += `<div class="field" style="margin-bottom:8px"><label>Registrar abono (L)</label><input type="number" id="nuevo-abono" placeholder="0.00" min="0" max="${pend.toFixed(2)}"></div><button class="btn btn-success btn-sm" onclick="registrarAbono('${v.id}')">✅ Guardar abono</button>`;
+  if(pend > 0.01) html += `<div class="field" style="margin-bottom:8px"><label for="nuevo-abono">Registrar abono (L)</label><input type="number" id="nuevo-abono" placeholder="0.00" min="0" max="${pend.toFixed(2)}"></div><button class="btn btn-success btn-sm" onclick="registrarAbono('${v.id}')">✅ Guardar abono</button>`;
   document.getElementById('modal-cliente-body').innerHTML = html;
   document.getElementById('modal-cliente').classList.add('open');
 }
@@ -917,11 +917,11 @@ function abrirEditarProducto(id) {
   const cats = data.categorias;
   document.getElementById('modal-producto-body').innerHTML = `
     <div class="form-grid form-grid-2" style="margin-bottom:12px">
-      <div class="field"><label>Nombre</label><input type="text" id="ep-nombre" value="${p.nombre}"></div>
-      <div class="field"><label>Categoría</label><select id="ep-cat">${cats.map(c=>'<option value="'+c+'"'+(p.categoria===c?' selected':'')+'>'+c+'</option>').join('')}</select></div>
-      <div class="field"><label>Costo (L)</label><input type="number" id="ep-costo" value="${p.costo}" min="0" oninput="calcEpPrecio()"></div>
-      <div class="field"><label>% ganancia</label><input type="number" id="ep-margen" value="${p.costo>0?((p.precio-p.costo)/p.costo*100).toFixed(0):0}" min="0" oninput="calcEpPrecio()"></div>
-      <div class="field"><label>Precio de venta (L)</label><input type="number" id="ep-precio" value="${p.precio}" min="0" oninput="calcEpMargen()"></div>
+      <div class="field"><label for="ep-nombre">Nombre</label><input type="text" id="ep-nombre" value="${p.nombre}"></div>
+      <div class="field"><label for="ep-cat">Categoría</label><select id="ep-cat">${cats.map(c=>'<option value="'+c+'"'+(p.categoria===c?' selected':'')+'>'+c+'</option>').join('')}</select></div>
+      <div class="field"><label for="ep-costo">Costo (L)</label><input type="number" id="ep-costo" value="${p.costo}" min="0" oninput="calcEpPrecio()"></div>
+      <div class="field"><label for="ep-margen">% ganancia</label><input type="number" id="ep-margen" value="${p.costo>0?((p.precio-p.costo)/p.costo*100).toFixed(0):0}" min="0" oninput="calcEpPrecio()"></div>
+      <div class="field"><label for="ep-precio">Precio de venta (L)</label><input type="number" id="ep-precio" value="${p.precio}" min="0" oninput="calcEpMargen()"></div>
     </div>
     <div class="divider"></div>
     <div class="section-label">Ajuste de stock</div>
@@ -1124,18 +1124,18 @@ function renderVentaItems() {
   container.innerHTML = ventaItems.map((item,i)=>`
     <div class="venta-item-row" id="vrow-${i}">
       <div class="field campo-busqueda" style="margin:0">
-        <label>Producto</label>
+        <label for="vbuscar-${i}">Producto</label>
         <input type="search" id="vbuscar-${i}" data-buscar-producto data-fila="${i}"
                autocomplete="off" value="${escaparHtml(textoDeFila(item))}"
                placeholder="Escribe para buscar…">
         <input type="hidden" id="vsel-${i}" value="${escaparHtml(item.productoId)}">
         <div class="sugerencias" id="vsug-${i}" data-panel-fila="${i}" role="listbox" hidden></div>
       </div>
-      <div class="field" style="margin:0"><label>Precio${esDelCatalogo(item)?'':' *'}</label><input id="vprecio-${i}" type="number" value="${item.precio||''}" min="0" placeholder="0" oninput="updateItem(${i},'precio',this.value)" ${esDelCatalogo(item)?'readonly title="Definido en Inventario" style="background:var(--gold-light);cursor:not-allowed"':''}></div>
-      <div class="field" style="margin:0"><label>Cantidad</label><input id="vqty-${i}" type="number" value="${item.qty}" min="1" oninput="updateItem(${i},'qty',this.value)"></div>
+      <div class="field" style="margin:0"><label for="vprecio-${i}">Precio${esDelCatalogo(item)?'':' *'}</label><input id="vprecio-${i}" type="number" value="${item.precio||''}" min="0" placeholder="0" oninput="updateItem(${i},'precio',this.value)" ${esDelCatalogo(item)?'readonly title="Definido en Inventario" style="background:var(--gold-light);cursor:not-allowed"':''}></div>
+      <div class="field" style="margin:0"><label for="vqty-${i}">Cantidad</label><input id="vqty-${i}" type="number" value="${item.qty}" min="1" oninput="updateItem(${i},'qty',this.value)"></div>
       <button class="venta-item-remove" onclick="removeItem(${i})">✕</button>
     </div>
-    <div id="vcustom-${i}" style="display:${item.productoId==='custom'?'block':'none'};margin:0 0 5px"><div class="field" style="margin:0"><label>Nombre del producto</label><input type="text" value="${escaparHtml(item.nombre)}" placeholder="Nombre del producto" oninput="updateItem(${i},'nombre',this.value)"></div></div>
+    <div id="vcustom-${i}" style="display:${item.productoId==='custom'?'block':'none'};margin:0 0 5px"><div class="field" style="margin:0"><label for="vcustom-nombre-${i}">Nombre del producto</label><input type="text" id="vcustom-nombre-${i}" value="${escaparHtml(item.nombre)}" placeholder="Nombre del producto" oninput="updateItem(${i},'nombre',this.value)"></div></div>
   `).join('');
 
   updateVentaTotals();
@@ -1378,10 +1378,10 @@ function editarRecordatorio(id) {
   document.getElementById('modal-rec-body').innerHTML=`
     <div style="background:var(--rose-light);border-radius:9px;padding:10px;margin-bottom:14px;font-size:12px"><strong>${cl?cl.nombre:'Cliente'}</strong>${v?' · Debe '+fmt(pend):''}</div>
     <div class="form-grid form-grid-2" style="margin-bottom:12px">
-      <div class="field"><label>Nueva fecha</label><input type="date" id="edit-rec-fecha" value="${r.fecha}" min="${today()}"></div>
-      <div class="field"><label>Nueva hora</label><input type="time" id="edit-rec-hora" value="${r.hora||'09:00'}"></div>
+      <div class="field"><label for="edit-rec-fecha">Nueva fecha</label><input type="date" id="edit-rec-fecha" value="${r.fecha}" min="${today()}"></div>
+      <div class="field"><label for="edit-rec-hora">Nueva hora</label><input type="time" id="edit-rec-hora" value="${r.hora||'09:00'}"></div>
     </div>
-    <div class="field" style="margin-bottom:14px"><label>Nota</label><input type="text" id="edit-rec-nota" value="${r.nota||''}" placeholder="Nota opcional"></div>
+    <div class="field" style="margin-bottom:14px"><label for="edit-rec-nota">Nota</label><input type="text" id="edit-rec-nota" value="${r.nota||''}" placeholder="Nota opcional"></div>
     <button class="btn btn-primary" style="width:100%" onclick="guardarEdicionRec('${id}')">💾 Guardar cambios</button>`;
   document.getElementById('modal-rec').classList.add('open');
 }
