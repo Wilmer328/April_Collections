@@ -6,7 +6,7 @@
  * detalle por la interfaz.
  */
 
-import { tabla, desenvolver, idDelDuenio } from './_comun.js';
+import { tabla, desenvolver, idDelDuenio, idDelNegocio } from './_comun.js';
 
 const TABLA = 'clientes';
 
@@ -55,12 +55,14 @@ export async function listar() {
 export async function crear({ nombre, dni = '', tel = '' }) {
   const supabase = await tabla();
   const owner_id = await idDelDuenio();
+  const negocio_id = idDelNegocio();
 
   const fila = desenvolver(
     await supabase
       .from(TABLA)
       .insert({
         owner_id,
+        negocio_id,
         nombre: nombre.trim(),
         // Cadena vacía a null: el índice único de DNI es parcial y solo se
         // aplica a los que tienen valor. Con '' chocarían entre sí.

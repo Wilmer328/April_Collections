@@ -11,6 +11,7 @@ Formato del nombre: `NNNN-titulo-en-kebab-case.md`
 | [0001](0001-autenticacion-con-google-via-supabase.md) | Autenticacion con Google mediante Supabase Auth | Aceptada |
 | [0002](0002-estrategia-de-notificaciones.md) | Estrategia de notificaciones de cobro | Aceptada |
 | [0003](0003-acceso-demo-con-credenciales-propias.md) | Acceso demo con credenciales propias (modifica ADR-0001) | Aceptada |
+| [0004](0004-negocio-como-unidad-de-acceso.md) | El negocio, y no la persona, como unidad de acceso | Aceptada |
 
 ## Pendientes
 

@@ -12,7 +12,7 @@
  * ocurren aquí.
  */
 
-import { tabla, desenvolver, idDelDuenio, aBase, aApp } from './_comun.js';
+import { tabla, desenvolver, idDelDuenio, idDelNegocio, aBase, aApp } from './_comun.js';
 
 const TABLA = 'ventas';
 
@@ -88,11 +88,12 @@ export async function listar() {
 export async function crear({ clienteId, fecha, tipoPago, items, abonoInicial = 0 }) {
   const supabase = await tabla();
   const owner_id = await idDelDuenio();
+  const negocio_id = idDelNegocio();
 
   const cabecera = desenvolver(
     await supabase
       .from(TABLA)
-      .insert({ owner_id, cliente_id: clienteId, fecha, tipo_pago: tipoPago })
+      .insert({ owner_id, negocio_id, cliente_id: clienteId, fecha, tipo_pago: tipoPago })
       .select()
       .single(),
     'guardar la venta',

@@ -10,6 +10,8 @@ Se ejecutan **en orden numérico** desde el SQL Editor de Supabase.
 | 0003 | `0003_datos_demo.sql` | Negocio ficticio para la cuenta demo |
 | 0004 | `0004_control_de_acceso.sql` | Lista de correos autorizados |
 | 0005 | `0005_kpis.sql` | Vistas de los indicadores del negocio |
+| 0006 | `0006_negocios_y_miembros.sql` | El negocio pasa a ser dueño de los datos; las personas acceden con un rol |
+| 0007 | `0007_correo_de_la_duenia.sql` | La dueña pasa a entrar con la cuenta del negocio |
 
 ## Todas son idempotentes
 
@@ -20,7 +22,8 @@ recordar no es una garantía.
 | Objeto | Cómo se consigue |
 |---|---|
 | Tablas e índices | `IF NOT EXISTS` |
-| Vistas y funciones | `OR REPLACE` |
+| Funciones | `OR REPLACE` |
+| Vistas | `OR REPLACE`, salvo cuando cambian de columnas: entonces `DROP VIEW IF EXISTS` antes de crear, porque `OR REPLACE` solo admite añadir columnas al final |
 | Políticas | `DROP POLICY IF EXISTS` antes de crear — PostgreSQL no admite `IF NOT EXISTS` en políticas |
 | Disparadores | `DROP TRIGGER IF EXISTS` antes de crear |
 | Datos sembrados | Se borra lo anterior de esa cuenta antes de insertar |

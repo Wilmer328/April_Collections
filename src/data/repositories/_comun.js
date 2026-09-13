@@ -12,6 +12,7 @@
 
 import { getSupabaseClient } from '../supabaseClient.js';
 import { aCentavos, aLempiras } from '../../domain/money.js';
+import { obtenerActivo } from './negocios.js';
 
 /**
  * Error de acceso a datos. Envuelve el error de Supabase para que la interfaz
@@ -59,11 +60,31 @@ export async function tabla() {
 }
 
 /**
+ * Identificador del negocio sobre el que se está trabajando.
+ *
+ * Es lo que decide el acceso: las políticas RLS comprueban que quien consulta
+ * sea miembro de ese negocio. Enviarlo aquí no es la seguridad —la política lo
+ * verifica igualmente en el servidor— pero sin él la fila se rechaza.
+ *
+ * @returns {string}
+ * @throws {ErrorDeDatos} si todavía no se ha elegido negocio.
+ */
+export function idDelNegocio() {
+  const negocio = obtenerActivo();
+
+  if (!negocio) {
+    throw new ErrorDeDatos('identificar el negocio', { message: 'sin negocio activo' });
+  }
+
+  return negocio.id;
+}
+
+/**
  * Identificador del usuario autenticado.
  *
- * Se necesita para rellenar `owner_id` al insertar. Las políticas RLS lo
- * comprueban igualmente en el servidor: enviarlo aquí no es la seguridad, solo
- * evita que la inserción sea rechazada por la política.
+ * Ya no decide el acceso: se guarda en `owner_id` como rastro de quién creó
+ * cada fila, que es útil cuando varias personas trabajan sobre el mismo
+ * negocio.
  *
  * @returns {Promise<string>}
  * @throws {ErrorDeDatos} si no hay sesión.
