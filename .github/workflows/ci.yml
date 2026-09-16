@@ -50,3 +50,55 @@ jobs:
           name: cobertura
           path: coverage/
           retention-days: 14
+
+  # ── Extremo a extremo ──────────────────────────────────────────────────────
+  # Job aparte, en paralelo con el anterior, por dos razones:
+  #
+  # 1. No alarga el pipeline. Las unitarias tardan un segundo; instalar un
+  #    navegador y recorrer la aplicación tarda un minuto. Si fueran en serie,
+  #    cada push esperaría a lo lento para saber lo rápido.
+  #
+  # 2. Aísla el fallo. Si esto se pone rojo, se sabe que fue el recorrido en
+  #    el navegador y no una prueba de dominio, sin abrir el log.
+  #
+  # Son 6 pruebas, no 60. La punta de la pirámide es angosta a propósito: un
+  # pipeline de media hora deja de ejecutarse en cada push, y ahí se empieza a
+  # mergear en rojo «porque siempre falla ese test».
+  extremo-a-extremo:
+    name: Recorrido en navegador
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Solo Chromium y solo sus dependencias del sistema. Instalar los tres
+      # navegadores triplicaría el tiempo para probar lo mismo tres veces.
+      - name: Instalar Chromium para Playwright
+        run: npx playwright install --with-deps chromium
+
+      # El build se hace dentro (playwright.config.js lo lanza con credenciales
+      # de mentira que apuntan a un dominio inexistente). Ninguna petición sale
+      # a un Supabase real: se interceptan todas en el navegador.
+      - name: Recorrer la aplicación como una persona
+        run: npm run test:e2e
+
+      # El informe con rastros y capturas solo importa cuando algo falló: es
+      # lo que permite entender el fallo sin reproducirlo a mano.
+      - name: Publicar el informe de Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-playwright
+          path: playwright-report/
+          retention-days: 14
