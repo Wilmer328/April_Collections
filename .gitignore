@@ -30,6 +30,10 @@ coverage/*
 !coverage/coverage-summary.json
 !coverage/lcov.info
 
+# Salidas de Playwright: rastros, capturas e informe HTML de cada ejecucion
+test-results/
+playwright-report/
+
 # Builds
 dist/
 build/
