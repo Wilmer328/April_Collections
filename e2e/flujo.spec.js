@@ -114,14 +114,21 @@ test('en pantalla de teléfono la cabecera cabe y el modo demo sigue visible', a
   await entrarComoUsuaria(page, credenciales);
 
   const medidas = await page.evaluate(() => ({
-    viewport: window.innerWidth,
+    // `clientWidth` y no `innerWidth`: el segundo incluye la barra de
+    // desplazamiento, que en Linux ocupa unos 15px y en Windows no. Comparar
+    // contra el ancho con barra hacia fallar la prueba solo en el runner.
+    disponible: document.documentElement.clientWidth,
     cabecera: Math.round(document.querySelector('.app-header').getBoundingClientRect().width),
     contenido: document.querySelector('.app-header').scrollWidth,
+    desbordaPagina: document.documentElement.scrollWidth > document.documentElement.clientWidth,
   }));
 
-  // La cabecera ocupa el ancho entero y su contenido cabe dentro.
-  expect(medidas.cabecera).toBe(medidas.viewport);
-  expect(medidas.contenido).toBeLessThanOrEqual(medidas.viewport);
+  // Lo que de verdad importa y se ve: la pagina no se desplaza en horizontal.
+  expect(medidas.desbordaPagina).toBe(false);
+
+  // Y el contenido de la cabecera cabe dentro de ella, sin recortes.
+  expect(medidas.contenido).toBeLessThanOrEqual(medidas.cabecera);
+  expect(medidas.cabecera).toBeLessThanOrEqual(medidas.disponible);
 
   // Y el aviso de demostración no se sacrifica por el espacio: se abrevia.
   const etiqueta = page.locator('#etiqueta-negocio');

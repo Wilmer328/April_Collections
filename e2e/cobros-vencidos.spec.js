@@ -15,24 +15,39 @@
 import { test, expect } from '@playwright/test';
 import { entrarComoUsuaria, interceptarSupabase } from './ayudas/supabase-doble.js';
 
-/** Fecha en formato ISO local, desplazada respecto a hoy. */
-function fechaRelativa(dias) {
-  const d = new Date();
-  d.setDate(d.getDate() + dias);
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, '0'),
-    String(d.getDate()).padStart(2, '0'),
-  ].join('-');
+/**
+ * Fecha ISO desplazada respecto a hoy, EN LA ZONA HORARIA DEL NAVEGADOR.
+ *
+ * No se calcula con el `new Date()` de Node: el proceso de pruebas corre en la
+ * zona del sistema —UTC en el runner de integración continua— mientras el
+ * navegador usa la de Honduras, fijada en `playwright.config.js`. Entre
+ * medianoche y las seis de la mañana UTC las dos zonas están en días distintos,
+ * y una prueba que sembrara «hoy» según Node y lo comprobara contra el «hoy» de
+ * la aplicación fallaría sola de madrugada, sin que nadie hubiera tocado nada.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {number} dias
+ * @returns {Promise<string>}
+ */
+function fechaRelativa(page, dias) {
+  return page.evaluate((n) => {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, '0'),
+      String(d.getDate()).padStart(2, '0'),
+    ].join('-');
+  }, dias);
 }
 
-/** Un recordatorio pendiente para la clienta del doble. */
-function recordatorio(id, dias) {
+/** Un recordatorio pendiente para la clienta del doble, en la fecha dada. */
+function recordatorio(id, fecha) {
   return {
     id,
     cliente_id: 'cli-1',
     venta_id: 'ven-1',
-    fecha: fechaRelativa(dias),
+    fecha,
     hora: '09:00',
     nota: null,
     estado: 'pendiente',
@@ -42,16 +57,22 @@ function recordatorio(id, dias) {
 }
 
 test('los cobros vencidos encabezan la pantalla, del más antiguo primero', async ({ page }) => {
+  const [ayer, viejo, manana] = await Promise.all([
+    fechaRelativa(page, -1),
+    fechaRelativa(page, -21),
+    fechaRelativa(page, 1),
+  ]);
+
   const { credenciales } = await interceptarSupabase(page, {
     recordatorios: [
-      recordatorio('r-ayer', -1),
-      recordatorio('r-viejo', -21),
-      recordatorio('r-manana', 1),
+      recordatorio('r-ayer', ayer),
+      recordatorio('r-viejo', viejo),
+      recordatorio('r-manana', manana),
     ],
   });
 
   await entrarComoUsuaria(page, credenciales);
-  await irARecordatorios(page);
+  await page.locator('.nav-btn[data-pagina="recordatorios"]').click();
 
   const franja = page.locator('#rec-alertas-vencidos');
   await expect(franja).toContainText('2 cobros vencidos');
@@ -64,16 +85,23 @@ test('los cobros vencidos encabezan la pantalla, del más antiguo primero', asyn
   expect(texto.indexOf('21 días')).toBeLessThan(texto.indexOf('1 día de retraso'));
 
   // El de mañana todavía no vence y no aparece aquí.
-  await expect(franja).not.toContainText('mañana');
+  await expect(franja).not.toContainText(manana);
 });
 
 test('el contador de la pestaña cuenta los vencidos, no solo los de hoy', async ({ page }) => {
+  const [hace5, hace2, hoy, futuro] = await Promise.all([
+    fechaRelativa(page, -5),
+    fechaRelativa(page, -2),
+    fechaRelativa(page, 0),
+    fechaRelativa(page, 3),
+  ]);
+
   const { credenciales } = await interceptarSupabase(page, {
     recordatorios: [
-      recordatorio('r-1', -5),
-      recordatorio('r-2', -2),
-      recordatorio('r-hoy', 0),
-      recordatorio('r-futuro', 3),
+      recordatorio('r-1', hace5),
+      recordatorio('r-2', hace2),
+      recordatorio('r-hoy', hoy),
+      recordatorio('r-futuro', futuro),
     ],
   });
 
@@ -84,23 +112,30 @@ test('el contador de la pestaña cuenta los vencidos, no solo los de hoy', async
 });
 
 test('sin cobros vencidos no aparece la franja', async ({ page }) => {
+  const futuro = await fechaRelativa(page, 5);
+
   const { credenciales } = await interceptarSupabase(page, {
-    recordatorios: [recordatorio('r-futuro', 5)],
+    recordatorios: [recordatorio('r-futuro', futuro)],
   });
 
   await entrarComoUsuaria(page, credenciales);
-  await irARecordatorios(page);
+  await page.locator('.nav-btn[data-pagina="recordatorios"]').click();
 
   await expect(page.locator('#rec-alertas-vencidos')).toBeEmpty();
 });
 
 test('aplazar un cobro lo mueve desde hoy, no desde la fecha vencida', async ({ page }) => {
+  const [hace30, enUnaSemana] = await Promise.all([
+    fechaRelativa(page, -30),
+    fechaRelativa(page, 7),
+  ]);
+
   const doble = await interceptarSupabase(page, {
-    recordatorios: [recordatorio('r-viejo', -30)],
+    recordatorios: [recordatorio('r-viejo', hace30)],
   });
 
-  await entrarComoUsuaria(page, credencialesDe(doble));
-  await irARecordatorios(page);
+  await entrarComoUsuaria(page, doble.credenciales);
+  await page.locator('.nav-btn[data-pagina="recordatorios"]').click();
 
   await page.locator('#rec-alertas-vencidos').getByRole('button', { name: '+1 sem' }).click();
 
@@ -114,24 +149,8 @@ test('aplazar un cobro lo mueve desde hoy, no desde la fecha vencida', async ({ 
 
   // Una semana desde HOY. Sumar sobre la fecha vencida lo dejaría tres semanas
   // en el pasado, es decir, seguiría vencido.
-  expect(envio.cuerpo.fecha).toBe(fechaRelativa(7));
+  expect(envio.cuerpo.fecha).toBe(enUnaSemana);
 
   // Y deja de estar vencido: la franja desaparece.
   await expect(page.locator('#rec-alertas-vencidos')).toBeEmpty();
 });
-
-/** Atajo para leer las credenciales del doble. */
-function credencialesDe(doble) {
-  return doble.credenciales;
-}
-
-/**
- * Abre la pestaña de recordatorios.
- *
- * Con cobros vencidos la aplicación lanza su aviso emergente. Ya no tapa la
- * barra de pestañas —se corrigió al escribir estas pruebas, porque impedía
- * navegar mientras estuviera abierto— así que basta con pulsar la pestaña.
- */
-async function irARecordatorios(page) {
-  await page.locator('.nav-btn[data-pagina="recordatorios"]').click();
-}
