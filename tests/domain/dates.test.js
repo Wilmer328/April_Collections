@@ -7,6 +7,7 @@ import {
   perteneceAlMes,
   comparar,
   esAnteriorA,
+  sumarDias,
 } from '../../src/domain/dates.js';
 
 describe('dates — regresión de los errores de zona horaria', () => {
@@ -74,5 +75,54 @@ describe('dates — comparación', () => {
     expect(esAnteriorA('2026-08-31', '2026-09-01')).toBe(true);
     expect(esAnteriorA('2025-12-31', '2026-01-01')).toBe(true);
     expect(esAnteriorA('2026-09-01', '2026-08-31')).toBe(false);
+  });
+});
+
+describe('dates — sumar días', () => {
+  it('suma dentro del mismo mes', () => {
+    expect(sumarDias('2026-03-10', 7)).toBe('2026-03-17');
+    expect(sumarDias('2026-03-10', 1)).toBe('2026-03-11');
+    expect(sumarDias('2026-03-10', 0)).toBe('2026-03-10');
+  });
+
+  it('cruza el final de mes sin saber cuántos días tiene', () => {
+    expect(sumarDias('2026-01-31', 1)).toBe('2026-02-01');
+    expect(sumarDias('2026-04-30', 1)).toBe('2026-05-01');
+    // Marzo tiene 31: el día 35 no existe y debe caer en abril.
+    expect(sumarDias('2026-03-20', 15)).toBe('2026-04-04');
+  });
+
+  it('cruza el final de año', () => {
+    expect(sumarDias('2026-12-25', 10)).toBe('2027-01-04');
+    expect(sumarDias('2026-12-31', 1)).toBe('2027-01-01');
+  });
+
+  it('respeta los años bisiestos', () => {
+    // 2028 es bisiesto: el 29 de febrero existe.
+    expect(sumarDias('2028-02-28', 1)).toBe('2028-02-29');
+    expect(sumarDias('2028-02-28', 2)).toBe('2028-03-01');
+    // 2026 no lo es: del 28 se pasa directo a marzo.
+    expect(sumarDias('2026-02-28', 1)).toBe('2026-03-01');
+  });
+
+  it('admite días negativos', () => {
+    expect(sumarDias('2026-03-01', -1)).toBe('2026-02-28');
+    expect(sumarDias('2027-01-01', -1)).toBe('2026-12-31');
+  });
+
+  it('no se desplaza un día por interpretar la fecha como UTC', () => {
+    // El fallo clásico: new Date('2026-03-15') es UTC, y al oeste de Greenwich
+    // devuelve el día anterior. Un plazo «a una semana» caeria a los seis días.
+    for (const dias of [1, 7, 15, 30]) {
+      const resultado = sumarDias('2026-03-15', dias);
+      const esperado = new Date(2026, 2, 15 + dias);
+      expect(resultado).toBe(
+        `${esperado.getFullYear()}-${String(esperado.getMonth() + 1).padStart(2, '0')}-${String(esperado.getDate()).padStart(2, '0')}`,
+      );
+    }
+  });
+
+  it('rechaza una fecha con formato inválido', () => {
+    expect(() => sumarDias('15/03/2026', 1)).toThrow();
   });
 });

@@ -405,6 +405,18 @@
     <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('modal-producto')">Cancelar</button></div>
   </div>
 </div>
+<!-- Se ofrece justo despues de guardar una venta fiada. Antes, agendar el cobro
+     obligaba a cambiar de pestana y volver a buscar la clienta y la venta, y en
+     la practica muchas ventas fiadas se quedaban sin recordatorio. -->
+<div class="modal-overlay" id="modal-agendar">
+  <div class="modal">
+    <div class="modal-title">🔔 ¿Cuándo prometió pagar?</div>
+    <div id="modal-agendar-body"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeModal('modal-agendar')">Ahora no</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="modal-rec">
   <div class="modal">
     <div class="modal-title" id="modal-rec-title">🔔 Recordatorio</div>
@@ -455,7 +467,7 @@
 <script type="module">
 // La logica de negocio vive en src/domain/: modulos puros, sin DOM, cubiertos
 // por pruebas. Esta pagina la consume en lugar de tener su propia copia.
-import { hoyLocal, perteneceAlMes, esAnteriorA } from './src/domain/dates.js';
+import { hoyLocal, perteneceAlMes, esAnteriorA, sumarDias } from './src/domain/dates.js';
 import { filtrarPor } from './src/domain/search.js';
 import { validarCliente, normalizarDni, formatearDni } from './src/domain/customers.js';
 import { ajustarStock as ajustarStockDominio, descontarStock } from './src/domain/inventory.js';
@@ -1208,6 +1220,10 @@ async function guardarVenta() {
     entregadoCentavos: aCentavos(document.getElementById('venta-abono').value || 0),
   }) / 100;
 
+  // Se guarda fuera del callback para poder ofrecer el cobro al terminar: la
+  // venta recien creada es la que lleva el id que necesita el recordatorio.
+  let ventaCreada = null;
+
   const guardado = await guardarEnLaNube(async () => {
     const creada = await repoVentas.crear({
       clienteId,
@@ -1217,6 +1233,7 @@ async function guardarVenta() {
       abonoInicial: entregado,
     });
     data.ventas.unshift(creada);
+    ventaCreada = creada;
 
     // Descontar existencias de lo vendido del catalogo. Se hace despues de
     // guardar la venta: si fallara aqui, quedaria registrada la venta con el
@@ -1238,6 +1255,9 @@ async function guardarVenta() {
   limpiarVenta();
   renderInicio();
   renderInventario(catActual);
+
+  // Si quedo deuda, se ofrece agendar el cobro sin salir de la pantalla.
+  ofrecerAgendarCobro(ventaCreada);
 }
 
 function limpiarVenta() {
@@ -1311,6 +1331,123 @@ async function guardarRecordatorio() {
   document.getElementById('rec-fecha').value='';
   document.getElementById('rec-nota').value='';
   renderRecordatoriosHoy(); renderRecordatorios(recFiltroActual); updateNotifBadge();
+}
+
+// ── AGENDAR EL COBRO AL VENDER ──
+// Registrar una venta fiada y agendar su cobro eran dos tareas separadas por
+// dos pantallas: habia que ir a Recordatorios y volver a buscar la clienta y la
+// venta que se acababan de registrar. En la practica, muchas ventas fiadas se
+// quedaban sin recordatorio, y una deuda sin recordatorio es una deuda que
+// nadie va a ir a cobrar.
+//
+// Ahora se ofrece en el momento, con la clienta y la venta ya elegidas. Los
+// plazos son los que usa el negocio de verdad; la fecha exacta sigue estando
+// para cuando la clienta dice un dia concreto.
+
+/** Plazos que se ofrecen de un toque. Son los que se pactan de palabra. */
+const PLAZOS_DE_COBRO = [
+  { dias: 7,  etiqueta: 'En 1 semana' },
+  { dias: 15, etiqueta: 'En 15 días' },
+  { dias: 30, etiqueta: 'En 1 mes' },
+];
+
+/** Hora por defecto del aviso. La misma que usa el formulario completo. */
+const HORA_DE_COBRO = '09:00';
+
+/**
+ * Ofrece agendar el cobro de una venta recien registrada.
+ *
+ * Solo tiene sentido si quedo saldo pendiente: una venta al contado, o una con
+ * abono inicial que cubrio el total, no hay que ir a cobrarla.
+ */
+function ofrecerAgendarCobro(venta) {
+  if(!venta) return;
+
+  const pendiente = venta.total - (venta.abonos||[]).reduce((s,a)=>s+a.monto,0);
+  if(pendiente <= 0.01) return;
+
+  const cliente = data.clientes.find(c=>c.id===venta.clienteId);
+  const desde = venta.fecha || today();
+
+  const opciones = PLAZOS_DE_COBRO.map(plazo => {
+    const fecha = sumarDias(desde, plazo.dias);
+    // .btn es inline-flex, asi que un <br> no separa las dos lineas: hay que
+    // apilar el contenido en columna.
+    return `<button class="btn btn-primary"
+      style="flex:1;min-width:104px;flex-direction:column;gap:1px;padding:10px 8px;line-height:1.25"
+      onclick="agendarCobro('${venta.id}','${fecha}')">
+      <span>${plazo.etiqueta}</span>
+      <span style="font-size:11px;opacity:.85;font-weight:500">${formatearFechaCorta(fecha)}</span>
+    </button>`;
+  }).join('');
+
+  document.getElementById('modal-agendar-body').innerHTML = `
+    <p style="margin:0 0 4px">
+      <strong>${escaparHtml(cliente ? cliente.nombre : 'La clienta')}</strong>
+      queda debiendo <strong>${fmt(pendiente)}</strong>.
+    </p>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 14px">
+      Agenda el cobro y la aplicación te avisará ese día.
+    </p>
+    <div class="btn-row" style="gap:8px;margin-bottom:12px">${opciones}</div>
+    <div class="field">
+      <label for="agendar-fecha">O elige la fecha que te dijo</label>
+      <input type="date" id="agendar-fecha" min="${desde}">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-gold" style="width:100%"
+        onclick="agendarCobro('${venta.id}', document.getElementById('agendar-fecha').value)">
+        📅 Agendar en esa fecha
+      </button>
+    </div>`;
+
+  // Se abre igual que los demas modales de la aplicacion.
+  document.getElementById('modal-agendar').classList.add('open');
+}
+
+/**
+ * Crea el recordatorio de cobro de una venta.
+ *
+ * @param {string} ventaId
+ * @param {string} fecha en formato ISO local.
+ */
+async function agendarCobro(ventaId, fecha) {
+  if(!fecha) { showToast('⚠️ Elige una fecha'); return; }
+
+  const venta = data.ventas.find(v=>v.id===ventaId);
+  if(!venta) return;
+
+  const cliente = data.clientes.find(c=>c.id===venta.clienteId);
+
+  const guardado = await guardarEnLaNube(async () => {
+    const creado = await repoRecordatorios.crear({
+      clienteId: venta.clienteId,
+      ventaId,
+      fecha,
+      hora: HORA_DE_COBRO,
+      nota: '',
+    });
+    data.recordatorios.push(creado);
+  }, '🔔 Cobro agendado para el '+formatearFechaCorta(fecha), 'recordatorio');
+
+  if(!guardado) return;
+
+  closeModal('modal-agendar');
+  renderRecordatoriosHoy();
+  renderRecordatorios(recFiltroActual);
+  updateNotifBadge();
+}
+
+/**
+ * Fecha en formato corto y legible, para los botones.
+ *
+ * Se construye con los numeros de la fecha en lugar de `new Date(iso)`, que
+ * interpretaria la cadena como UTC y mostraria el dia anterior.
+ */
+function formatearFechaCorta(iso) {
+  const [anio, mes, dia] = iso.split('-').map(Number);
+  const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${dia} ${MESES[mes-1]}`;
 }
 
 function filtrarRec(fil,btn) {
@@ -1576,7 +1713,7 @@ function notifRegistrarPago() {
 // requisito para activar la CSP estricta de la Etapa 7, que prohibe el
 // codigo inline.
 Object.assign(window, {
-  abrirEditarProducto, abrirPagoDesdeRec, addVentaItem, ajustarStock,
+  abrirEditarProducto, abrirPagoDesdeRec, addVentaItem, agendarCobro, ajustarStock,
   calcEpMargen, calcEpPrecio, calcMargenInv, calcPrecio,
   calcPrecioInv, closeModal, descartarRec, dismissNotif,
   editarRecordatorio, eliminarProducto, filtrarRec, guardarCliente,
