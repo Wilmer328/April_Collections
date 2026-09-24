@@ -116,3 +116,27 @@ export function comparar(a, b) {
 export function esAnteriorA(iso, referencia) {
   return comparar(iso, referencia) < 0;
 }
+
+/**
+ * Suma días a una fecha y devuelve la fecha resultante.
+ *
+ * Se construye con `new Date(anio, mes - 1, dia + dias)` a propósito, que es la
+ * forma que el propio constructor normaliza: pedirle el día 35 de marzo
+ * devuelve el 4 de abril, y pedirle el 30 de febrero devuelve el 1 o el 2 de
+ * marzo según el año. Sumar a mano sobre el número de día obligaría a conocer
+ * la longitud de cada mes y los años bisiestos.
+ *
+ * Se trabaja en horario LOCAL y no en UTC. `new Date('2026-03-15')` interpreta
+ * la cadena como UTC y, en Honduras, devuelve el 14 de marzo a las 18:00: un
+ * día antes del que se escribió. Ese desfase es justo el que haría que un
+ * recordatorio a «una semana» cayera seis días después.
+ *
+ * @param {FechaIso} iso fecha de partida.
+ * @param {number} dias días a sumar. Puede ser negativo.
+ * @returns {FechaIso}
+ */
+export function sumarDias(iso, dias) {
+  const { anio, mes, dia } = partesDe(iso);
+
+  return aIsoLocal(new Date(anio, mes - 1, dia + dias));
+}

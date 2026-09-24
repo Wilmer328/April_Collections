@@ -79,6 +79,13 @@ function datosIniciales() {
       },
     ],
     recordatorios: [],
+
+    // Las tablas hijas existen tambien por su cuenta, no solo anidadas dentro
+    // de una venta: `repoVentas.crear` inserta en ellas directamente. Sin esto
+    // el doble respondia 404, la aplicacion deshacia la venta —como debe— y la
+    // prueba fallaba por una carencia del doble, no del producto.
+    venta_items: [],
+    abonos: [],
   };
 }
 
@@ -215,7 +222,33 @@ export async function interceptarSupabase(page) {
       const quiereUno = (peticion.headers().accept ?? '').includes('pgrst.object');
 
       if (metodo === 'GET') {
-        return json(ruta, 200, quiereUno ? filas[0] ?? null : filas);
+        // Se respetan los filtros `.eq(columna, valor)`, que PostgREST recibe
+        // como parametros de consulta `columna=eq.valor`. Sin esto, pedir una
+        // venta concreta devolvia siempre la primera de la tabla, y una prueba
+        // podia pasar comprobando la fila equivocada.
+        let resultado = filas;
+
+        for (const [columna, expresion] of url.searchParams) {
+          if (!expresion.startsWith('eq.')) continue;
+          const valor = expresion.slice(3);
+          resultado = resultado.filter((fila) => String(fila[columna]) === valor);
+        }
+
+        // PostgREST anida las tablas hijas cuando el `select` las pide
+        // —`venta_items ( ... ), abonos ( ... )`— y la aplicacion cuenta con
+        // ello para calcular el total de la venta. Sin anidarlas, toda venta
+        // recien creada valia cero.
+        if (tabla === 'ventas') {
+          resultado = resultado.map((venta) => ({
+            ...venta,
+            venta_items: venta.venta_items
+              ?? tablas.venta_items.filter((i) => i.venta_id === venta.id),
+            abonos: venta.abonos
+              ?? tablas.abonos.filter((a) => a.venta_id === venta.id),
+          }));
+        }
+
+        return json(ruta, 200, quiereUno ? resultado[0] ?? null : resultado);
       }
 
       if (metodo === 'POST') {
