@@ -78,6 +78,9 @@ function datosIniciales() {
         abonos: [{ monto_centavos: 5000, fecha: '2026-03-04' }],
       },
     ],
+    // Vacia por defecto. Las pruebas que necesitan recordatorios los ponen
+    // con la opcion `recordatorios` de interceptarSupabase: sus fechas dependen
+    // del dia en que se ejecuten y no pueden quedar fijas aqui.
     recordatorios: [],
 
     // Las tablas hijas existen tambien por su cuenta, no solo anidadas dentro
@@ -170,8 +173,9 @@ function json(ruta, estado, cuerpo, extra = {}) {
  *   `tablas` es el estado vivo (las escrituras lo modifican), `escrituras`
  *   registra cada POST/PATCH/DELETE con su tabla y su cuerpo.
  */
-export async function interceptarSupabase(page, { negocio = NEGOCIO } = {}) {
+export async function interceptarSupabase(page, { negocio = NEGOCIO, recordatorios = [] } = {}) {
   const tablas = datosIniciales();
+  tablas.recordatorios = recordatorios;
 
   // Permite probar con otro negocio —el de demostracion, por ejemplo— sin
   // duplicar todo el doble.

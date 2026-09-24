@@ -101,3 +101,37 @@ export function ordenarPorMomento(recordatorios) {
 export function contarDeHoy(recordatorios, hoyIso) {
   return recordatorios.filter((recordatorio) => esDeHoy(recordatorio, hoyIso)).length;
 }
+
+/**
+ * Recordatorios vencidos, del más antiguo al más reciente.
+ *
+ * El orden importa: una promesa de hace tres semanas pesa más que la de ayer,
+ * y es la que conviene atender primero.
+ *
+ * @param {Recordatorio[]} recordatorios
+ * @param {string} hoyIso
+ * @returns {Recordatorio[]}
+ */
+export function vencidos(recordatorios, hoyIso) {
+  return recordatorios
+    .filter((recordatorio) => estaVencido(recordatorio, hoyIso))
+    .sort((a, b) => comparar(a.fecha, b.fecha));
+}
+
+/**
+ * Cuántos cobros reclaman atención: los vencidos más los de hoy.
+ *
+ * Antes solo se contaban los de hoy, y eso dejaba un hueco: quien no abría la
+ * aplicación un día veía el contador en cero al siguiente, aunque tuviera
+ * cobros sin atender. Un aviso que desaparece solo por no haberlo mirado no
+ * avisa de nada.
+ *
+ * @param {Recordatorio[]} recordatorios
+ * @param {string} hoyIso
+ * @returns {number}
+ */
+export function contarPorAtender(recordatorios, hoyIso) {
+  return recordatorios.filter(
+    (recordatorio) => esDeHoy(recordatorio, hoyIso) || estaVencido(recordatorio, hoyIso),
+  ).length;
+}
