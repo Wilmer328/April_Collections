@@ -8,6 +8,8 @@ import {
   completarPorVenta,
   ordenarPorMomento,
   contarDeHoy,
+  vencidos,
+  contarPorAtender,
 } from '../../src/domain/reminders.js';
 
 const HOY = '2026-08-29';
@@ -126,5 +128,61 @@ describe('reminders — orden', () => {
     ordenarPorMomento(lista);
 
     expect(lista[0].id).toBe('b');
+  });
+});
+
+describe('reminders — cobros vencidos', () => {
+  const HOY = '2026-03-15';
+
+  const hacer = (fecha, estado = ESTADO.PENDIENTE) => ({ id: fecha, fecha, hora: '09:00', estado });
+
+  it('lista solo los pendientes cuya fecha ya pasó', () => {
+    const lista = [
+      hacer('2026-03-10'),
+      hacer('2026-03-15'),   // hoy: aún no venció
+      hacer('2026-03-20'),   // futuro
+    ];
+
+    expect(vencidos(lista, HOY).map((r) => r.fecha)).toEqual(['2026-03-10']);
+  });
+
+  it('ordena del más antiguo al más reciente', () => {
+    const lista = [hacer('2026-03-12'), hacer('2026-02-01'), hacer('2026-03-01')];
+
+    // La promesa más vieja pesa más: es la que conviene atender primero.
+    expect(vencidos(lista, HOY).map((r) => r.fecha)).toEqual([
+      '2026-02-01', '2026-03-01', '2026-03-12',
+    ]);
+  });
+
+  it('ignora los ya pagados o descartados aunque su fecha haya pasado', () => {
+    const lista = [
+      hacer('2026-03-01', ESTADO.COMPLETADO),
+      hacer('2026-03-02', ESTADO.DESCARTADO),
+      hacer('2026-03-03'),
+    ];
+
+    expect(vencidos(lista, HOY).map((r) => r.fecha)).toEqual(['2026-03-03']);
+  });
+
+  it('cuenta para atender los vencidos y los de hoy', () => {
+    const lista = [
+      hacer('2026-03-01'),   // vencido
+      hacer('2026-03-10'),   // vencido
+      hacer('2026-03-15'),   // hoy
+      hacer('2026-03-20'),   // futuro: todavía no toca
+      hacer('2026-03-02', ESTADO.COMPLETADO),
+    ];
+
+    expect(contarPorAtender(lista, HOY)).toBe(3);
+  });
+
+  it('el contador no se vacía por no haber abierto la aplicación', () => {
+    // Un cobro de ayer sigue reclamando atención hoy. Antes solo se contaban
+    // los del día, y al día siguiente el contador volvía a cero.
+    const ayer = [hacer('2026-03-14')];
+
+    expect(contarDeHoy(ayer, HOY)).toBe(0);
+    expect(contarPorAtender(ayer, HOY)).toBe(1);
   });
 });

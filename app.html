@@ -383,11 +383,15 @@
     <div id="estado-notificaciones"></div>
   </div>
 
+  <!-- Los vencidos van encima de los de hoy: una promesa de hace tres
+       semanas pesa mas que la de esta manana. -->
+  <div id="rec-alertas-vencidos"></div>
   <div id="rec-alertas-hoy"></div>
   <div class="card">
     <div class="card-title">📋 Todos los recordatorios</div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
       <button class="btn btn-sm btn-ghost active-cat" data-recfil="pendiente" onclick="filtrarRec('pendiente',this)">⏳ Pendientes</button>
+      <button class="btn btn-sm btn-ghost" data-recfil="vencidos" onclick="filtrarRec('vencidos',this)">⚠️ Vencidos</button>
       <button class="btn btn-sm btn-ghost" data-recfil="hoy" onclick="filtrarRec('hoy',this)">📅 Hoy</button>
       <button class="btn btn-sm btn-ghost" data-recfil="todos" onclick="filtrarRec('todos',this)">🗂️ Todos</button>
     </div>
@@ -431,7 +435,10 @@
 </div>
 
 <!-- NOTIF POPUP -->
-<div id="notif-popup" style="display:none;position:fixed;top:66px;right:12px;left:12px;max-width:340px;margin:0 auto;background:var(--charcoal);color:#fff;border-radius:14px;padding:16px 18px;box-shadow:var(--shadow-lg);z-index:500">
+<!-- Por debajo de la barra de pestañas: a 66px caia justo encima y las
+     dejaba sin poder pulsarse mientras el aviso estuviera abierto. La
+     cabecera mide 56px y la navegacion unos 40 mas. -->
+<div id="notif-popup" style="display:none;position:fixed;top:104px;right:12px;left:12px;max-width:340px;margin:0 auto;background:var(--charcoal);color:#fff;border-radius:14px;padding:16px 18px;box-shadow:var(--shadow-lg);z-index:500">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
     <div><div style="font-size:12px;color:var(--gold);font-weight:600;margin-bottom:3px">🔔 RECORDATORIO DE COBRO</div><div id="notif-popup-text" style="font-size:13px;line-height:1.4"></div></div>
     <button onclick="dismissNotif()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:7px;padding:3px 9px;cursor:pointer;font-size:12px;flex-shrink:0">✕</button>
@@ -473,6 +480,7 @@
 // La logica de negocio vive en src/domain/: modulos puros, sin DOM, cubiertos
 // por pruebas. Esta pagina la consume en lugar de tener su propia copia.
 import { hoyLocal, perteneceAlMes, esAnteriorA, sumarDias } from './src/domain/dates.js';
+import { vencidos as recordatoriosVencidos, contarPorAtender } from './src/domain/reminders.js';
 import { filtrarPor } from './src/domain/search.js';
 import { validarCliente, normalizarDni, formatearDni } from './src/domain/customers.js';
 import { ajustarStock as ajustarStockDominio, descontarStock } from './src/domain/inventory.js';
@@ -1304,7 +1312,7 @@ function initRecordatorios() {
   sel.onchange = () => cargarVentasPendientesRec(sel.value);
   document.getElementById('rec-fecha').min = today();
   renderEstadoNotificaciones();
-  renderRecordatoriosHoy();
+  renderRecordatoriosVencidos(); renderRecordatoriosHoy();
   renderRecordatorios(recFiltroActual);
 }
 
@@ -1335,7 +1343,7 @@ async function guardarRecordatorio() {
   document.getElementById('rec-venta').innerHTML='<option value="">— Elige cliente(a) primero —</option>';
   document.getElementById('rec-fecha').value='';
   document.getElementById('rec-nota').value='';
-  renderRecordatoriosHoy(); renderRecordatorios(recFiltroActual); updateNotifBadge();
+  renderRecordatoriosVencidos(); renderRecordatoriosHoy(); renderRecordatorios(recFiltroActual); updateNotifBadge();
 }
 
 // ── AGENDAR EL COBRO AL VENDER ──
@@ -1438,7 +1446,7 @@ async function agendarCobro(ventaId, fecha) {
   if(!guardado) return;
 
   closeModal('modal-agendar');
-  renderRecordatoriosHoy();
+  renderRecordatoriosVencidos(); renderRecordatoriosHoy();
   renderRecordatorios(recFiltroActual);
   updateNotifBadge();
 }
@@ -1462,6 +1470,110 @@ function filtrarRec(fil,btn) {
   renderRecordatorios(fil);
 }
 
+/**
+ * Pinta la franja de cobros vencidos.
+ *
+ * Antes, un recordatorio cuya fecha ya paso solo llevaba una etiqueta gris
+ * perdida en la lista: una deuda de hace tres semanas se veia igual que una de
+ * mañana. Ahora encabeza la pantalla, ordenada del mas antiguo al mas reciente,
+ * porque la promesa mas vieja es la que mas cuesta cobrar.
+ */
+function renderRecordatoriosVencidos() {
+  const container = document.getElementById('rec-alertas-vencidos');
+  if(!container) return;
+
+  const lista = recordatoriosVencidos(data.recordatorios, today());
+
+  if(!lista.length) { container.innerHTML = ''; return; }
+
+  const filas = lista.map(r => {
+    const cl = data.clientes.find(c=>c.id===r.clienteId);
+    const v = r.ventaId ? data.ventas.find(x=>x.id===r.ventaId) : null;
+    const pend = v ? v.total - (v.abonos||[]).reduce((s,a)=>s+a.monto,0) : 0;
+    const dias = diasDeRetraso(r.fecha);
+
+    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0;border-top:1px solid rgba(200,90,74,0.2)">
+      <div style="flex:1;min-width:150px">
+        <div style="font-weight:600">${escaparHtml(cl ? cl.nombre : 'Cliente')}</div>
+        <div style="font-size:12px;opacity:.85">
+          Prometió el ${r.fecha} · <strong>${dias} ${dias === 1 ? 'día' : 'días'} de retraso</strong>
+          ${v ? ' · Debe ' + fmt(pend) : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        ${v ? `<button class="btn btn-sm btn-success" onclick="abrirPagoDesdeRec('${r.id}')">💰 Pago</button>` : ''}
+        <button class="btn btn-sm btn-ghost" onclick="posponerRecordatorio('${r.id}',1)">+1 día</button>
+        <button class="btn btn-sm btn-ghost" onclick="posponerRecordatorio('${r.id}',7)">+1 sem</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `<div class="alert alert-danger" style="display:block">
+    <div style="font-weight:700;margin-bottom:2px">
+      ⚠️ ${lista.length} ${lista.length === 1 ? 'cobro vencido' : 'cobros vencidos'}
+    </div>
+    <div style="font-size:12px;opacity:.85;margin-bottom:4px">
+      Del más antiguo al más reciente.
+    </div>
+    ${filas}
+  </div>`;
+}
+
+/**
+ * Días transcurridos desde una fecha prometida hasta hoy.
+ *
+ * Se cuenta avanzando dia a dia con `sumarDias`, que ya resuelve los cambios de
+ * mes y los años bisiestos. Restar marcas de tiempo daria el numero equivocado
+ * cuando entre las dos fechas hay un cambio de horario.
+ */
+function diasDeRetraso(fechaIso) {
+  const hoy = today();
+  let dias = 0;
+  let cursor = fechaIso;
+
+  // Tope de seguridad: un recordatorio de hace mas de tres años no aporta nada
+  // y no merece un bucle largo.
+  while(cursor < hoy && dias < 1100) {
+    cursor = sumarDias(cursor, 1);
+    dias += 1;
+  }
+
+  return dias;
+}
+
+/**
+ * Aplaza un recordatorio unos dias.
+ *
+ * «Me dijo que mejor el lunes» es lo mas comun del negocio, y hasta ahora
+ * obligaba a abrir el formulario de edicion, cambiar la fecha y guardar. Desde
+ * la propia lista es un toque.
+ *
+ * Se cuenta desde HOY y no desde la fecha prometida: aplazar «una semana» un
+ * cobro vencido hace un mes debe llevarlo a la semana que viene, no a hace tres
+ * semanas.
+ *
+ * @param {string} id
+ * @param {number} dias
+ */
+async function posponerRecordatorio(id, dias) {
+  const r = data.recordatorios.find(x=>x.id===id);
+  if(!r) return;
+
+  const nueva = sumarDias(today(), dias);
+
+  const guardado = await guardarEnLaNube(async () => {
+    await repoRecordatorios.actualizar(id, { fecha: nueva });
+    r.fecha = nueva;
+  }, '📅 Aplazado al '+nueva, 'recordatorio');
+
+  if(!guardado) return;
+
+  renderRecordatoriosVencidos();
+  renderRecordatoriosHoy();
+  renderRecordatorios(recFiltroActual);
+  updateNotifBadge();
+}
+
 function renderRecordatoriosHoy() {
   const hoy=today();
   const deHoy=data.recordatorios.filter(r=>r.fecha===hoy&&r.estado==='pendiente');
@@ -1480,6 +1592,7 @@ function renderRecordatorios(fil) {
   let lista=[...data.recordatorios].sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
   if(fil==='pendiente') lista=lista.filter(r=>r.estado==='pendiente');
   else if(fil==='hoy') lista=lista.filter(r=>r.fecha===hoy);
+  else if(fil==='vencidos') lista=recordatoriosVencidos(data.recordatorios, hoy);
   const container=document.getElementById('lista-recordatorios');
   if(!lista.length) { container.innerHTML='<div class="empty-state"><div class="emoji">🔔</div>No hay recordatorios en esta vista</div>'; return; }
   container.innerHTML=lista.map(r=>{
@@ -1508,7 +1621,7 @@ async function descartarRec(id) {
 
   if(!guardado) return;
 
-  renderRecordatoriosHoy(); renderRecordatorios(recFiltroActual); updateNotifBadge();
+  renderRecordatoriosVencidos(); renderRecordatoriosHoy(); renderRecordatorios(recFiltroActual); updateNotifBadge();
 }
 
 function editarRecordatorio(id) {
@@ -1546,12 +1659,15 @@ async function guardarEdicionRec(id) {
   if(!guardado) return;
 
   closeModal('modal-rec');
-  renderRecordatoriosHoy(); renderRecordatorios(recFiltroActual);
+  renderRecordatoriosVencidos(); renderRecordatoriosHoy(); renderRecordatorios(recFiltroActual);
 }
 
 function updateNotifBadge() {
-  const hoy=today();
-  const activos=data.recordatorios.filter(r=>r.fecha===hoy&&r.estado==='pendiente').length;
+  // Vencidos ademas de los de hoy. Antes solo contaba los del dia, y quien no
+  // abria la aplicacion una jornada veia el contador en cero al siguiente
+  // aunque tuviera cobros sin atender: un aviso que se borra solo por no
+  // haberlo mirado no avisa de nada.
+  const activos=contarPorAtender(data.recordatorios, today());
   const badge=document.getElementById('notif-badge'); if(!badge) return;
   badge.textContent=activos; badge.style.display=activos>0?'inline-block':'none';
 }
@@ -1724,7 +1840,7 @@ Object.assign(window, {
   editarRecordatorio, eliminarProducto, filtrarRec, guardarCliente,
   guardarEdicionProducto, guardarEdicionRec, guardarProducto, guardarRecordatorio,
   guardarVenta, limpiarVenta, notifRegistrarPago, openVentaDetalle,
-  posponerNotif, registrarAbono, removeItem, renderInicio,
+  posponerNotif, posponerRecordatorio, registrarAbono, removeItem, renderInicio,
   showPage, syncSlider, updateItem, updatePagoFields,
 });
 
