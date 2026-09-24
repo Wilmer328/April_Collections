@@ -92,6 +92,14 @@
   .field input:focus, .field select:focus { border-color: var(--rose); background: var(--white); }
   .price-preview { background: var(--gold-light); border-radius: 9px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-top: 4px; }
   .price-preview strong { font-size: 18px; color: var(--warning); font-family: 'Playfair Display', serif; }
+  /* Distintivo del negocio activo. El de demostracion se marca en dorado y
+     con el rotulo completo, porque confundir datos inventados con datos
+     reales de clientas es el error que mas caro sale de esta pantalla. */
+  .negocio { font-size: 11px; font-weight: 600; letter-spacing: 0.4px; padding: 3px 9px;
+             border-radius: 999px; background: rgba(255,255,255,0.1);
+             color: rgba(255,255,255,0.6); white-space: nowrap; }
+  .negocio.demo { background: var(--gold); color: var(--charcoal); }
+
   .btn { display: inline-flex; align-items: center; gap: 5px; padding: 9px 16px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }
   .btn-primary { background: var(--rose); color: var(--white); }
   .btn-primary:hover { background: var(--rose-dark); }
@@ -184,14 +192,11 @@
   <div class="brand">
     <div class="brand-icon">💎</div>
     <div class="brand-name">April <span>Collections</span></div>
-    <!-- Solo aparece para quien pertenece a mas de un negocio. Quien pertenece
-         a uno no ve nada y la cabecera queda igual que siempre. -->
-    <select id="selector-negocio" hidden aria-label="Negocio activo"
-            style="background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.2);
-                   border-radius:7px;padding:4px 8px;font-size:12px;font-family:inherit;cursor:pointer">
-    </select>
-    <span id="etiqueta-negocio" hidden
-          style="font-size:12px;color:rgba(255,255,255,0.55)"></span>
+    <!-- Dice en que negocio se esta trabajando. Antes era un desplegable para
+         cambiar de negocio, pero cada cuenta pertenece a uno solo: ofrecia una
+         eleccion que casi nunca habia que hacer. Informar es lo util; para ver
+         la demostracion se entra con la cuenta demo. -->
+    <span id="etiqueta-negocio" hidden></span>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
     <button id="btn-instalar" class="btn btn-sm" type="button" hidden
@@ -1924,21 +1929,18 @@ async function salir() {
  * Con uno solo basta una etiqueta. Con varios hace falta poder cambiar, que es
  * el caso de quien administra el negocio real y ademas ensena la demostracion.
  */
-function mostrarNegocio(negocios) {
+function mostrarNegocio() {
   const activo = repoNegocios.obtenerActivo();
-  const selector = document.getElementById('selector-negocio');
   const etiqueta = document.getElementById('etiqueta-negocio');
+  if (!activo) return;
 
-  if (negocios.length > 1) {
-    selector.innerHTML = negocios
-      .map((n) => `<option value="${escaparHtml(n.id)}">${escaparHtml(n.nombre)}</option>`)
-      .join('');
-    selector.value = activo.id;
-    selector.hidden = false;
-    return;
-  }
+  // El negocio de demostracion se distingue a proposito: quien enseña el
+  // producto tiene que ver de un vistazo que no esta mirando datos reales.
+  const esDemostracion = activo.nombre.toLowerCase().startsWith('demostracion')
+    || activo.nombre.toLowerCase().startsWith('demostración');
 
-  etiqueta.textContent = activo.nombre;
+  etiqueta.textContent = esDemostracion ? 'MODO DEMOSTRACIÓN' : activo.nombre;
+  etiqueta.className = esDemostracion ? 'negocio demo' : 'negocio';
   etiqueta.hidden = false;
 }
 
@@ -2006,7 +2008,7 @@ async function arrancar() {
   }
 
   repoNegocios.elegirInicial(negocios, usuario.id);
-  mostrarNegocio(negocios);
+  mostrarNegocio();
 
   /** Abre la pestana que pida la direccion, si trae una valida. */
   const abrirPestanaPedida = () => {
@@ -2054,15 +2056,6 @@ async function arrancar() {
 }
 
 document.getElementById('btn-salir').addEventListener('click', salir);
-
-// Al cambiar de negocio se recarga la pagina entera. Es deliberado: rehacer a
-// mano todo el estado en memoria —datos, filtros, pestana abierta, avisos
-// programados— es mucha superficie donde dejarse algo del negocio anterior.
-document.getElementById('selector-negocio').addEventListener('change', (evento) => {
-  const elegido = { id: evento.target.value, nombre: evento.target.selectedOptions[0].textContent, rol: '' };
-  repoNegocios.fijarActivo(elegido, usuarioActual.id);
-  window.location.reload();
-});
 
 document.getElementById('error-guardado-cerrar').addEventListener('click', () => {
   document.getElementById('error-guardado').hidden = true;

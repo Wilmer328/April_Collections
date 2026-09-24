@@ -170,8 +170,14 @@ function json(ruta, estado, cuerpo, extra = {}) {
  *   `tablas` es el estado vivo (las escrituras lo modifican), `escrituras`
  *   registra cada POST/PATCH/DELETE con su tabla y su cuerpo.
  */
-export async function interceptarSupabase(page) {
+export async function interceptarSupabase(page, { negocio = NEGOCIO } = {}) {
   const tablas = datosIniciales();
+
+  // Permite probar con otro negocio —el de demostracion, por ejemplo— sin
+  // duplicar todo el doble.
+  if (negocio !== NEGOCIO) {
+    tablas.miembros = [{ rol: 'administrador', negocios: { id: negocio.id, nombre: negocio.nombre } }];
+  }
   const escrituras = [];
   let contador = 0;
 
@@ -280,6 +286,7 @@ export async function interceptarSupabase(page) {
   return {
     tablas,
     escrituras,
+    negocio,
     credenciales: { correo: USUARIA.email, contrasena: CONTRASENA },
   };
 }
