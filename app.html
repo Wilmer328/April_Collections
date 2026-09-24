@@ -1738,24 +1738,30 @@ function renderEstadoNotificaciones() {
   if(!caja) return;
 
   if(!('Notification' in window)) {
-    caja.innerHTML = `<div class="alert alert-warning">Este navegador no admite avisos del sistema. Los recordatorios seguiran apareciendo dentro de la aplicacion.</div>`;
+    caja.innerHTML = `<div class="alert alert-warning">Este navegador no admite avisos del sistema. Los recordatorios seguirán apareciendo dentro de la aplicación.</div>`;
     return;
   }
 
-  const explicacion = `Te avisaremos <strong>${MINUTOS_ANTICIPACION} minutos antes</strong> de cada cobro, y el aviso insistira cada ${MINUTOS_ENTRE_INSISTENCIAS} minutos hasta que lo atiendas.`;
+  // Una linea, no un parrafo. Quien mira esta tarjeta quiere saber si los
+  // avisos estan puestos, no como funcionan por dentro. El detalle de cada
+  // cuanto insiste el aviso se ve cuando ocurre, no hace falta anunciarlo.
+  const cuando = `Te avisaremos <strong>${MINUTOS_ANTICIPACION} minutos antes</strong> de cada cobro.`;
 
   if(Notification.permission === 'granted') {
-    caja.innerHTML = `<div class="alert" style="background:var(--success-light);color:var(--success)">✅ Avisos activados en este dispositivo. ${explicacion}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">Llegan a la bandeja del telefono, con sonido y vibracion. Hace falta que la aplicacion este abierta, aunque sea en segundo plano: con la aplicacion cerrada del todo no hay aviso.</div>`;
+    // La salvedad se queda, pero en seis palabras: sin ella la duena confiaria
+    // en un aviso que no va a llegar. Con la aplicacion cerrada del todo no hay
+    // notificacion hasta que exista Web Push con servidor (ADR-0002).
+    caja.innerHTML = `<div class="alert" style="background:var(--success-light);color:var(--success)">✅ Avisos activados. ${cuando}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Deja la aplicación abierta en segundo plano para recibirlos.</div>`;
     return;
   }
 
   if(Notification.permission === 'denied') {
-    caja.innerHTML = `<div class="alert alert-danger">Los avisos estan bloqueados en este navegador. Para activarlos, abre los permisos del sitio y permite las notificaciones.</div>`;
+    caja.innerHTML = `<div class="alert alert-danger">Los avisos están bloqueados en este navegador. Para activarlos, abre los permisos del sitio y permite las notificaciones.</div>`;
     return;
   }
 
-  caja.innerHTML = `<div style="font-size:13px;color:var(--muted);margin-bottom:10px">${explicacion}</div>
+  caja.innerHTML = `<div style="font-size:13px;color:var(--muted);margin-bottom:10px">${cuando}</div>
     <button class="btn btn-primary btn-sm" id="btn-activar-notif" type="button">🔔 Activar avisos en este dispositivo</button>`;
 }
 
