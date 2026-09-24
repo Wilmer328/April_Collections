@@ -91,6 +91,71 @@ test('el modo demostración se distingue del negocio real', async ({ page }) => 
   await entrarComoUsuaria(page, credenciales);
 
   const etiqueta = page.locator('#etiqueta-negocio');
-  await expect(etiqueta).toHaveText('MODO DEMOSTRACIÓN');
   await expect(etiqueta).toHaveClass(/demo/);
+
+  // Lleva dos rotulos y el CSS decide cual se ve segun el ancho: el largo en
+  // pantalla amplia, «DEMO» en el telefono. Se comprueba el que se VE, no el
+  // texto de ambos junto.
+  await expect(etiqueta.locator('.negocio__largo')).toBeVisible();
+  await expect(etiqueta.locator('.negocio__largo')).toHaveText('MODO DEMOSTRACIÓN');
+  await expect(etiqueta.locator('.negocio__corto')).toBeHidden();
+});
+
+test('la cabecera nunca se desborda, a ningún ancho', async ({ page }) => {
+  // El fallo original: en el teléfono el contenido de la cabecera no cabía, el
+  // navegador ensanchaba el viewport para que entrara, y la barra oscura —que
+  // mide lo que el body— dejaba de llegar al borde. Se veía como una franja
+  // blanca junto a «Salir».
+  //
+  // Se prueban varios anchos y no uno solo porque la primera corrección hacía
+  // que cupiera por menos de un píxel a 390px: pasaba en Windows y fallaba en
+  // Linux, donde las tipografías miden algo distinto. Un margen de un píxel no
+  // es que quepa, es que todavía no se ha roto.
+  const ANCHOS = [320, 375, 412, 480, 560, 768, 1280];
+
+  const { credenciales } = await interceptarSupabase(page, {
+    negocio: { id: 'n-demo', nombre: 'Demostracion' },
+  });
+
+  await entrarComoUsuaria(page, credenciales);
+
+  for (const ancho of ANCHOS) {
+    await page.setViewportSize({ width: ancho, height: 800 });
+
+    const medidas = await page.evaluate(() => {
+      // `clientWidth` y no `innerWidth`: el segundo incluye la barra de
+      // desplazamiento, que en Linux ocupa unos 15px y en Windows ninguno.
+      const disponible = document.documentElement.clientWidth;
+
+      return {
+        desborda: document.documentElement.scrollWidth > disponible,
+        cabecera: document.querySelector('.app-header').scrollWidth,
+        disponible,
+      };
+    });
+
+    expect(medidas.desborda, `se desborda a ${ancho}px`).toBe(false);
+    expect(medidas.cabecera, `la cabecera no cabe a ${ancho}px`)
+      .toBeLessThanOrEqual(medidas.disponible);
+  }
+});
+
+test('en el teléfono el aviso de demostración no se sacrifica por espacio', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 780 });
+
+  const { credenciales } = await interceptarSupabase(page, {
+    negocio: { id: 'n-demo', nombre: 'Demostracion' },
+  });
+
+  await entrarComoUsuaria(page, credenciales);
+
+  // El rótulo se abrevia, pero sigue ahí: confundir datos inventados con datos
+  // de clientas reales es el error que más caro sale.
+  const etiqueta = page.locator('#etiqueta-negocio');
+  await expect(etiqueta.locator('.negocio__corto')).toBeVisible();
+  await expect(etiqueta.locator('.negocio__corto')).toHaveText('DEMO');
+  await expect(etiqueta.locator('.negocio__largo')).toBeHidden();
+
+  // Y salir de la sesión tiene que poder pulsarse siempre.
+  await expect(page.locator('#btn-salir')).toBeVisible();
 });

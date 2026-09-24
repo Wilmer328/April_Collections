@@ -49,9 +49,17 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--charcoal); min-height: 100vh; }
-  .app-header { background: var(--charcoal); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
-  .brand { display: flex; align-items: center; gap: 10px; }
-  .sesion { display: flex; align-items: center; gap: 8px; }
+  .app-header { background: var(--charcoal); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 56px; }
+  /* Sin esto, el contenido de la cabecera se desbordaba en el telefono: el
+     navegador ensanchaba el viewport para que cupiera y la barra oscura
+     —que mide lo que el body— dejaba de llegar al borde derecho. Se veia
+     como un recorte blanco junto al boton de salir. */
+  .app-header > * { min-width: 0; }
+  /* `min-width: 0` permite que el nombre se encoja. Sin el, un hijo de flex
+     no baja de su ancho de contenido y empuja la cabecera fuera de la
+     pantalla en vez de ceder. */
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 1 auto; }
+  .sesion { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .sesion__avatar {
     width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
     background: var(--rose); object-fit: cover;
@@ -61,11 +69,18 @@
      da para el nombre completo y lo importante es el boton de salir. */
   .sesion__nombre {
     font-size: 12px; color: rgba(255,255,255,0.75);
+    /* `min-width: 0` ademas del recorte: sin el, el correo no baja de su ancho
+       de contenido y empuja el boton de salir fuera de la pantalla. */
+    min-width: 0; flex: 0 1 auto;
     max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   @media (max-width: 560px) { .sesion__nombre, #fechaHoy { display: none; } }
   .brand-icon { width: 28px; height: 28px; background: var(--rose); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-  .brand-name { font-family: 'Playfair Display', serif; color: var(--white); font-size: 16px; }
+  /* El nombre es lo primero que cede sitio: la aplicacion ya se abre desde un
+     icono que lo lleva, y perder unas letras del rotulo importa menos que
+     recortar el aviso de demostracion o el boton de salir. */
+  .brand-name { font-family: 'Playfair Display', serif; color: var(--white); font-size: 16px;
+                min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .brand-name span { color: var(--gold); }
   .nav { display: flex; gap: 2px; background: var(--charcoal); padding: 0 12px; border-bottom: 1px solid rgba(255,255,255,0.08); overflow-x: auto; }
   .nav::-webkit-scrollbar { display: none; }
@@ -97,8 +112,44 @@
      reales de clientas es el error que mas caro sale de esta pantalla. */
   .negocio { font-size: 11px; font-weight: 600; letter-spacing: 0.4px; padding: 3px 9px;
              border-radius: 999px; background: rgba(255,255,255,0.1);
-             color: rgba(255,255,255,0.6); white-space: nowrap; }
+             color: rgba(255,255,255,0.6); white-space: nowrap;
+             min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .negocio.demo { background: var(--gold); color: var(--charcoal); }
+  .negocio__corto { display: none; }
+
+  @media (max-width: 560px) {
+    /* En el telefono el espacio es el recurso escaso. La etiqueta del negocio
+       real no aporta nada que la marca no diga ya, asi que se retira; la de
+       demostracion se queda siempre —abreviada— porque confundir datos
+       inventados con datos de clientas reales es el error caro. */
+    .negocio:not(.demo) { display: none; }
+    .negocio__largo { display: none; }
+    .negocio__corto { display: inline; }
+
+    /* Margen de sobra, no margen justo. Con 20px de relleno a cada lado la
+       cabecera cabia por menos de un pixel a 390px de ancho: bastaba una
+       tipografia ligeramente distinta —otro sistema operativo, o la de
+       respaldo mientras carga la remota— para que se desbordara. Lo detecto
+       una prueba que fallaba en Linux y pasaba en Windows. */
+    .app-header { padding: 0 12px; gap: 8px; }
+    .brand { gap: 6px; }
+    /* Estos tres no ceden: el icono identifica la aplicacion, el aviso de
+       demostracion evita confundir datos inventados con reales, y salir de la
+       sesion tiene que poder pulsarse siempre. */
+    .brand-icon, .negocio, .sesion { flex-shrink: 0; }
+  }
+
+  /* Por debajo de 480px ni encogiendo el nombre cabe todo con holgura. Se
+     retiran las dos piezas prescindibles: el rotulo de la marca —el icono
+     sigue ahi, y la aplicacion se abre desde uno que ya lleva el nombre— y la
+     palabra «Instalar», que queda como icono.
+     El limite se puso primero en 420 y dejaba la banda de 430px con menos de
+     cinco pixeles de margen, que es el tipo de holgura que ya fallo una vez
+     por una tipografia distinta. */
+  @media (max-width: 480px) {
+    .brand-name { display: none; }
+    .solo-ancho { display: none; }
+  }
 
   .btn { display: inline-flex; align-items: center; gap: 5px; padding: 9px 16px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }
   .btn-primary { background: var(--rose); color: var(--white); }
@@ -200,7 +251,7 @@
   </div>
   <div style="display:flex;align-items:center;gap:10px">
     <button id="btn-instalar" class="btn btn-sm" type="button" hidden
-            style="background:var(--gold);color:var(--charcoal);border:none">⬇️ Instalar</button>
+            style="background:var(--gold);color:var(--charcoal);border:none">⬇️<span class="solo-ancho"> Instalar</span></button>
     <div style="font-size:11px;color:rgba(255,255,255,0.4);" id="fechaHoy"></div>
     <div class="sesion" id="sesion" hidden>
       <img class="sesion__avatar" id="sesion-avatar" alt="" hidden>
@@ -1695,7 +1746,7 @@ function renderEstadoNotificaciones() {
 
   if(Notification.permission === 'granted') {
     caja.innerHTML = `<div class="alert" style="background:var(--success-light);color:var(--success)">✅ Avisos activados en este dispositivo. ${explicacion}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">Solo llegan con la aplicacion abierta, aunque este en segundo plano.</div>`;
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Llegan a la bandeja del telefono, con sonido y vibracion. Hace falta que la aplicacion este abierta, aunque sea en segundo plano: con la aplicacion cerrada del todo no hay aviso.</div>`;
     return;
   }
 
@@ -1716,7 +1767,15 @@ async function activarNotificaciones() {
 
     if(permiso === 'granted') {
       showToast('✅ Avisos activados');
-      new Notification('April Collections', { body: 'Listo. Te avisaremos antes de cada cobro.' });
+
+      // Por el service worker, igual que los avisos de cobro: el constructor
+      // no funciona en Android y la confirmacion no llegaria justo en el
+      // dispositivo donde hace falta comprobar que funciona.
+      const registro = await navigator.serviceWorker?.ready;
+      const bienvenida = { body: 'Listo. Te avisaremos antes de cada cobro.', icon: '/icono-192.png' };
+
+      if(registro) await registro.showNotification('April Collections', bienvenida);
+      else new Notification('April Collections', bienvenida);
     } else {
       showToast('⚠️ No se concedio el permiso');
     }
@@ -1726,8 +1785,20 @@ async function activarNotificaciones() {
   }
 }
 
-/** Lanza el aviso del sistema operativo. */
-function notificarEnSistema(r) {
+/**
+ * Lanza el aviso en la bandeja del sistema operativo.
+ *
+ * Va por el SERVICE WORKER y no por `new Notification(...)`. En Android, el
+ * constructor esta prohibido: el navegador lo rechaza con «Illegal
+ * constructor» y remite a `ServiceWorkerRegistration.showNotification()`. La
+ * version anterior lo usaba, atrapaba el error y lo dejaba en un aviso de
+ * consola, asi que el aviso salia en el escritorio y nunca en el telefono,
+ * que es justo donde se usa la aplicacion.
+ *
+ * Con el service worker el aviso llega a la bandeja del sistema, suena y
+ * vibra, y sigue ahi aunque la aplicacion este en segundo plano.
+ */
+async function notificarEnSistema(r) {
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
 
   const cl = data.clientes.find(c => c.id === r.clienteId);
@@ -1738,22 +1809,35 @@ function notificarEnSistema(r) {
   if(v) lineas.push('Debe ' + fmt(pendiente));
   if(r.nota) lineas.push(r.nota);
 
-  try {
-    const aviso = new Notification('🔔 Cobrar a ' + (cl ? cl.nombre : 'cliente(a)'), {
-      body: lineas.join(' · '),
-      // Misma etiqueta para el mismo cobro: al insistir se reemplaza el aviso
-      // anterior en lugar de apilar copias.
-      tag: 'cobro-' + r.id,
-      // Permanece en pantalla hasta que la usuaria la atienda, en vez de
-      // desvanecerse sola a los pocos segundos.
-      requireInteraction: true,
-    });
+  const contenido = {
+    body: lineas.join(' · '),
+    icon: '/icono-192.png',
+    badge: '/icono-192.png',
+    // Misma etiqueta para el mismo cobro: al insistir se reemplaza el aviso
+    // anterior en lugar de apilar copias.
+    tag: 'cobro-' + r.id,
+    // Permanece en la bandeja hasta que la usuaria lo atienda, en vez de
+    // desvanecerse solo a los pocos segundos.
+    requireInteraction: true,
+    // Vibracion corta: se nota en el bolsillo sin resultar alarmante.
+    vibrate: [180, 90, 180],
+    // Lo lee el service worker para abrir la pantalla correcta al tocarlo.
+    data: { ruta: '/app#recordatorios', recordatorioId: r.id },
+  };
 
-    aviso.onclick = () => {
-      window.focus();
-      aviso.close();
-      if(r.ventaId) abrirPagoDesdeRec(r.id);
-    };
+  const titulo = '🔔 Cobrar a ' + (cl ? cl.nombre : 'cliente(a)');
+
+  try {
+    const registro = await navigator.serviceWorker?.ready;
+
+    if(registro) {
+      await registro.showNotification(titulo, contenido);
+      return;
+    }
+
+    // Sin service worker —por ejemplo en una pestaña de incognito— se recurre
+    // al constructor, que si funciona en el escritorio.
+    new Notification(titulo, contenido);
   } catch (error) {
     console.warn('No se pudo mostrar el aviso del sistema:', error);
   }
@@ -2055,7 +2139,11 @@ function mostrarNegocio() {
   const esDemostracion = activo.nombre.toLowerCase().startsWith('demostracion')
     || activo.nombre.toLowerCase().startsWith('demostración');
 
-  etiqueta.textContent = esDemostracion ? 'MODO DEMOSTRACIÓN' : activo.nombre;
+  // Dos rotulos: el largo para pantalla ancha y el corto para el telefono.
+  // El CSS decide cual se ve; asi no hay que reaccionar al cambio de tamaño.
+  etiqueta.innerHTML = esDemostracion
+    ? '<span class="negocio__largo">MODO DEMOSTRACIÓN</span><span class="negocio__corto">DEMO</span>'
+    : escaparHtml(activo.nombre);
   etiqueta.className = esDemostracion ? 'negocio demo' : 'negocio';
   etiqueta.hidden = false;
 }

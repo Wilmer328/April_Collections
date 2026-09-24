@@ -194,3 +194,40 @@ self.addEventListener('fetch', (evento) => {
     request.mode === 'navigate' ? responderNavegacion(evento) : responderRecurso(evento),
   );
 });
+
+// ── Avisos del sistema ────────────────────────────────────────────────────
+// En Android, `new Notification(...)` no funciona: el navegador lo rechaza con
+// «Illegal constructor» y obliga a pasar por el service worker. Como aqui se
+// muestran, aqui hay que atender el toque.
+
+self.addEventListener('notificationclick', (evento) => {
+  evento.notification.close();
+
+  // La notificacion lleva la venta a cobrar, si la tiene, para abrir
+  // directamente esa pantalla en lugar de dejar a la usuaria buscandola.
+  const destino = evento.notification.data?.ruta || '/app#recordatorios';
+
+  evento.waitUntil((async () => {
+    const ventanas = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
+    });
+
+    // Si la aplicacion ya esta abierta se reutiliza esa ventana: abrir otra
+    // dejaria dos copias con el mismo negocio y confundiria mas que ayudar.
+    for (const ventana of ventanas) {
+      if (ventana.url.includes('/app')) {
+        await ventana.focus();
+        if ('navigate' in ventana) await ventana.navigate(destino);
+        return;
+      }
+    }
+
+    await self.clients.openWindow(destino);
+  })());
+});
+
+self.addEventListener('notificationclose', () => {
+  // Nada que hacer: el recordatorio sigue pendiente y volvera a avisar. Se
+  // declara para dejar claro que cerrarlo NO es atenderlo.
+});
