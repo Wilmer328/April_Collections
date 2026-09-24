@@ -91,6 +91,41 @@ test('el modo demostración se distingue del negocio real', async ({ page }) => 
   await entrarComoUsuaria(page, credenciales);
 
   const etiqueta = page.locator('#etiqueta-negocio');
-  await expect(etiqueta).toHaveText('MODO DEMOSTRACIÓN');
   await expect(etiqueta).toHaveClass(/demo/);
+
+  // Lleva dos rotulos y el CSS decide cual se ve segun el ancho: el largo en
+  // pantalla amplia, «DEMO» en el telefono. Se comprueba el que se VE, no el
+  // texto de ambos junto.
+  await expect(etiqueta.locator('.negocio__largo')).toBeVisible();
+  await expect(etiqueta.locator('.negocio__largo')).toHaveText('MODO DEMOSTRACIÓN');
+  await expect(etiqueta.locator('.negocio__corto')).toBeHidden();
+});
+
+test('en pantalla de teléfono la cabecera cabe y el modo demo sigue visible', async ({ page }) => {
+  // Un ancho de teléfono real. Antes, el contenido de la cabecera se desbordaba
+  // y el navegador ensanchaba el viewport para que cupiera: la barra oscura
+  // dejaba de llegar al borde y se veía una franja blanca junto a «Salir».
+  await page.setViewportSize({ width: 390, height: 780 });
+
+  const { credenciales } = await interceptarSupabase(page, {
+    negocio: { id: 'n-demo', nombre: 'Demostracion' },
+  });
+
+  await entrarComoUsuaria(page, credenciales);
+
+  const medidas = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    cabecera: Math.round(document.querySelector('.app-header').getBoundingClientRect().width),
+    contenido: document.querySelector('.app-header').scrollWidth,
+  }));
+
+  // La cabecera ocupa el ancho entero y su contenido cabe dentro.
+  expect(medidas.cabecera).toBe(medidas.viewport);
+  expect(medidas.contenido).toBeLessThanOrEqual(medidas.viewport);
+
+  // Y el aviso de demostración no se sacrifica por el espacio: se abrevia.
+  const etiqueta = page.locator('#etiqueta-negocio');
+  await expect(etiqueta.locator('.negocio__corto')).toBeVisible();
+  await expect(etiqueta.locator('.negocio__corto')).toHaveText('DEMO');
+  await expect(etiqueta.locator('.negocio__largo')).toBeHidden();
 });

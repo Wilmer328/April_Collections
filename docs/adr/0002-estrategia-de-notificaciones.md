@@ -69,6 +69,29 @@ página no está cargada. Ninguna cantidad de JavaScript en la página resuelve
 eso; es una restricción del modelo de seguridad de la web, no una carencia de
 la implementación.
 
+### Corrección posterior — en Android el aviso nunca llegaba
+
+La tabla de arriba describía lo que **debía** ocurrir. En Android no ocurría, y
+la causa estaba en una línea de código.
+
+El aviso se lanzaba con `new Notification(...)`. Chrome para Android **prohíbe
+ese constructor**: responde `Illegal constructor` y remite a
+`ServiceWorkerRegistration.showNotification()`. La llamada estaba dentro de un
+`try/catch` que dejaba el fallo en un aviso de consola, así que el aviso salía
+en el escritorio —donde se probaba— y nunca en el teléfono, que es justo donde
+se usa la aplicación.
+
+Los avisos pasan ahora por el Service Worker, que ya existía para el modo sin
+conexión. Con eso llegan a la bandeja del sistema con sonido y vibración, y
+tocarlos abre la pantalla del cobro: el propio Service Worker atiende
+`notificationclick` y reutiliza la ventana abierta si la hay.
+
+Esto **no** adelanta la Etapa 6. Sigue haciendo falta que la aplicación esté
+cargada, aunque sea en segundo plano; con ella cerrada del todo no hay aviso
+hasta que exista Web Push con servidor. Lo que cambia es que en la situación que
+la tabla daba por cubierta —aplicación en segundo plano en el teléfono— el aviso
+ahora sí llega.
+
 En iOS, además, las notificaciones push exigen que la aplicación esté instalada
 en la pantalla de inicio como PWA.
 
