@@ -101,11 +101,17 @@ test('el modo demostración se distingue del negocio real', async ({ page }) => 
   await expect(etiqueta.locator('.negocio__corto')).toBeHidden();
 });
 
-test('en pantalla de teléfono la cabecera cabe y el modo demo sigue visible', async ({ page }) => {
-  // Un ancho de teléfono real. Antes, el contenido de la cabecera se desbordaba
-  // y el navegador ensanchaba el viewport para que cupiera: la barra oscura
-  // dejaba de llegar al borde y se veía una franja blanca junto a «Salir».
-  await page.setViewportSize({ width: 390, height: 780 });
+test('la cabecera nunca se desborda, a ningún ancho', async ({ page }) => {
+  // El fallo original: en el teléfono el contenido de la cabecera no cabía, el
+  // navegador ensanchaba el viewport para que entrara, y la barra oscura —que
+  // mide lo que el body— dejaba de llegar al borde. Se veía como una franja
+  // blanca junto a «Salir».
+  //
+  // Se prueban varios anchos y no uno solo porque la primera corrección hacía
+  // que cupiera por menos de un píxel a 390px: pasaba en Windows y fallaba en
+  // Linux, donde las tipografías miden algo distinto. Un margen de un píxel no
+  // es que quepa, es que todavía no se ha roto.
+  const ANCHOS = [320, 375, 412, 480, 560, 768, 1280];
 
   const { credenciales } = await interceptarSupabase(page, {
     negocio: { id: 'n-demo', nombre: 'Demostracion' },
@@ -113,26 +119,43 @@ test('en pantalla de teléfono la cabecera cabe y el modo demo sigue visible', a
 
   await entrarComoUsuaria(page, credenciales);
 
-  const medidas = await page.evaluate(() => ({
-    // `clientWidth` y no `innerWidth`: el segundo incluye la barra de
-    // desplazamiento, que en Linux ocupa unos 15px y en Windows no. Comparar
-    // contra el ancho con barra hacia fallar la prueba solo en el runner.
-    disponible: document.documentElement.clientWidth,
-    cabecera: Math.round(document.querySelector('.app-header').getBoundingClientRect().width),
-    contenido: document.querySelector('.app-header').scrollWidth,
-    desbordaPagina: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-  }));
+  for (const ancho of ANCHOS) {
+    await page.setViewportSize({ width: ancho, height: 800 });
 
-  // Lo que de verdad importa y se ve: la pagina no se desplaza en horizontal.
-  expect(medidas.desbordaPagina).toBe(false);
+    const medidas = await page.evaluate(() => {
+      // `clientWidth` y no `innerWidth`: el segundo incluye la barra de
+      // desplazamiento, que en Linux ocupa unos 15px y en Windows ninguno.
+      const disponible = document.documentElement.clientWidth;
 
-  // Y el contenido de la cabecera cabe dentro de ella, sin recortes.
-  expect(medidas.contenido).toBeLessThanOrEqual(medidas.cabecera);
-  expect(medidas.cabecera).toBeLessThanOrEqual(medidas.disponible);
+      return {
+        desborda: document.documentElement.scrollWidth > disponible,
+        cabecera: document.querySelector('.app-header').scrollWidth,
+        disponible,
+      };
+    });
 
-  // Y el aviso de demostración no se sacrifica por el espacio: se abrevia.
+    expect(medidas.desborda, `se desborda a ${ancho}px`).toBe(false);
+    expect(medidas.cabecera, `la cabecera no cabe a ${ancho}px`)
+      .toBeLessThanOrEqual(medidas.disponible);
+  }
+});
+
+test('en el teléfono el aviso de demostración no se sacrifica por espacio', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 780 });
+
+  const { credenciales } = await interceptarSupabase(page, {
+    negocio: { id: 'n-demo', nombre: 'Demostracion' },
+  });
+
+  await entrarComoUsuaria(page, credenciales);
+
+  // El rótulo se abrevia, pero sigue ahí: confundir datos inventados con datos
+  // de clientas reales es el error que más caro sale.
   const etiqueta = page.locator('#etiqueta-negocio');
   await expect(etiqueta.locator('.negocio__corto')).toBeVisible();
   await expect(etiqueta.locator('.negocio__corto')).toHaveText('DEMO');
   await expect(etiqueta.locator('.negocio__largo')).toBeHidden();
+
+  // Y salir de la sesión tiene que poder pulsarse siempre.
+  await expect(page.locator('#btn-salir')).toBeVisible();
 });
