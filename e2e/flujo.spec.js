@@ -23,7 +23,11 @@ test('entra con correo y contraseña y llega a la aplicación', async ({ page })
   // solo aporta la inicial del avatar cuando no hay foto.
   await expect(page.locator('#sesion-nombre')).toHaveText(USUARIA.email);
   await expect(page.locator('#sesion-inicial')).toHaveText(USUARIA.nombre.charAt(0));
+
+  // El negocio se muestra como etiqueta, no como desplegable: cada cuenta
+  // pertenece a uno solo, asi que elegir no era una accion util. Informar si.
   await expect(page.locator('#etiqueta-negocio')).toHaveText(NEGOCIO.nombre);
+  await expect(page.locator('#selector-negocio')).toHaveCount(0);
 });
 
 test('ve las clientas del negocio y quién debe', async ({ page }) => {
@@ -75,4 +79,18 @@ test('registra una clienta nueva y la envía al servidor con su negocio', async 
     telefono: '9999-0003',
     negocio_id: NEGOCIO.id,
   });
+});
+
+test('el modo demostración se distingue del negocio real', async ({ page }) => {
+  // Quien enseña el producto tiene que ver de un vistazo que no está mirando
+  // datos de clientas reales. Se comprueba con el negocio de demostración.
+  const { credenciales } = await interceptarSupabase(page, {
+    negocio: { id: 'n-demo', nombre: 'Demostracion' },
+  });
+
+  await entrarComoUsuaria(page, credenciales);
+
+  const etiqueta = page.locator('#etiqueta-negocio');
+  await expect(etiqueta).toHaveText('MODO DEMOSTRACIÓN');
+  await expect(etiqueta).toHaveClass(/demo/);
 });
